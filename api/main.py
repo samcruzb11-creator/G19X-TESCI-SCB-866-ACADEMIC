@@ -1,10 +1,5 @@
-from fastapi import FastAPI
+"""Punto de entrada compatible con el módulo original."""
 
-app = FastAPI()
+from app.main import app
 
-@app.get("/")
-def inicio():
-    return {
-        "mensaje": "Sistema de Trazabilidad Documental",
-        "estado": "API funcionando correctamente"
-    }
+__all__ = ["app"]
