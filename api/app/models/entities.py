@@ -7,23 +7,22 @@ UTC when reading values returned by MySQL.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 
 from sqlalchemy import (
     CheckConstraint,
     ForeignKey,
-    ForeignKeyConstraint,
     Index,
-    Integer,
     JSON,
     String,
     Text,
     UniqueConstraint,
-    and_,
+    func,
+    text,
 )
 from sqlalchemy.dialects import mysql
-from sqlalchemy.orm import Mapped, foreign, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -38,24 +37,38 @@ def _id_column() -> Any:
 
 
 def _utc_column(*, nullable: bool = False, onupdate: bool = False) -> Any:
-    options: dict[str, Any] = {"nullable": nullable}
+    options: dict[str, Any] = {
+        "nullable": nullable,
+        "default": _utc_now,
+    }
     if onupdate:
         options["onupdate"] = _utc_now
+        options["server_default"] = text("CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)")
     else:
-        options["default"] = _utc_now
+        options["server_default"] = func.current_timestamp(6)
     return mapped_column(mysql.DATETIME(fsp=6), **options)
 
 
 class Usuario(Base):
     __tablename__ = "usuarios"
-    __table_args__ = (UniqueConstraint("correo_normalizado", name="uq_usuarios_correo_normalizado"),)
+    __table_args__ = (
+        UniqueConstraint("correo_normalizado", name="uq_usuarios_correo_normalizado"),
+        CheckConstraint(
+            "rol IN ('ADMIN', 'AUDITOR_INTERNO', 'AUDITOR_EXTERNO', 'RESPONSABLE_AREA', 'APROBADOR')",
+            name="ck_usuarios_rol",
+        ),
+        Index("ix_usuarios_rol", "rol"),
+    )
 
     id: Mapped[int] = mapped_column(_id_column(), primary_key=True, autoincrement=True)
     nombre: Mapped[str] = mapped_column(String(160), nullable=False)
     correo: Mapped[str] = mapped_column(String(320), nullable=False)
     correo_normalizado: Mapped[str] = mapped_column(String(320), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    activo: Mapped[bool] = mapped_column(mysql.BOOLEAN(), nullable=False, default=True)
+    rol: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="AUDITOR_INTERNO", server_default=text("'AUDITOR_INTERNO'")
+    )
+    activo: Mapped[bool] = mapped_column(mysql.BOOLEAN(), nullable=False, default=True, server_default=text("1"))
     created_at: Mapped[datetime] = _utc_column()
     updated_at: Mapped[datetime] = _utc_column(onupdate=True)
 
@@ -103,7 +116,7 @@ class Area(Base):
     id: Mapped[int] = mapped_column(_id_column(), primary_key=True, autoincrement=True)
     codigo: Mapped[str] = mapped_column(String(40), nullable=False)
     nombre: Mapped[str] = mapped_column(String(160), nullable=False)
-    activa: Mapped[bool] = mapped_column(mysql.BOOLEAN(), nullable=False, default=True)
+    activa: Mapped[bool] = mapped_column(mysql.BOOLEAN(), nullable=False, default=True, server_default=text("1"))
     created_at: Mapped[datetime] = _utc_column()
     updated_at: Mapped[datetime] = _utc_column(onupdate=True)
 
@@ -129,15 +142,17 @@ class Auditoria(Base):
         ),
         Index("ix_auditorias_estado_inicio", "estado", "fecha_inicio_prevista"),
         Index("ix_auditorias_responsable", "responsable_id"),
+        Index("ix_auditorias_created_by", "created_by_id"),
+        Index("ix_auditorias_updated_by", "updated_by_id"),
     )
 
     id: Mapped[int] = mapped_column(_id_column(), primary_key=True, autoincrement=True)
     codigo: Mapped[str] = mapped_column(String(60), nullable=False)
     nombre: Mapped[str] = mapped_column(String(200), nullable=False)
     alcance: Mapped[str] = mapped_column(Text, nullable=False)
-    estado: Mapped[str] = mapped_column(String(24), nullable=False, default="PLANNED")
-    fecha_inicio_prevista: Mapped[Any | None] = mapped_column(mysql.DATE(), nullable=True)
-    fecha_fin_prevista: Mapped[Any | None] = mapped_column(mysql.DATE(), nullable=True)
+    estado: Mapped[str] = mapped_column(String(24), nullable=False, default="PLANNED", server_default=text("'PLANNED'"))
+    fecha_inicio_prevista: Mapped[date | None] = mapped_column(mysql.DATE(), nullable=True)
+    fecha_fin_prevista: Mapped[date | None] = mapped_column(mysql.DATE(), nullable=True)
     iniciada_en: Mapped[datetime | None] = mapped_column(mysql.DATETIME(fsp=6), nullable=True)
     completada_en: Mapped[datetime | None] = mapped_column(mysql.DATETIME(fsp=6), nullable=True)
     responsable_id: Mapped[int] = mapped_column(
@@ -168,7 +183,10 @@ class Documento(Base):
             "estado IN ('DRAFT', 'ACTIVE', 'OBSOLETE', 'ARCHIVED')", name="ck_documentos_estado"
         ),
         Index("ix_documentos_estado_area", "estado", "area_id"),
+        Index("ix_documentos_area_id", "area_id"),
         Index("ix_documentos_responsable", "responsable_id"),
+        Index("ix_documentos_created_by", "created_by_id"),
+        Index("ix_documentos_version_vigente", "version_vigente_id"),
     )
 
     id: Mapped[int] = mapped_column(_id_column(), primary_key=True, autoincrement=True)
@@ -176,7 +194,7 @@ class Documento(Base):
     titulo: Mapped[str] = mapped_column(String(240), nullable=False)
     descripcion: Mapped[str | None] = mapped_column(Text, nullable=True)
     tipo: Mapped[str] = mapped_column(String(40), nullable=False)
-    estado: Mapped[str] = mapped_column(String(24), nullable=False, default="DRAFT")
+    estado: Mapped[str] = mapped_column(String(24), nullable=False, default="DRAFT", server_default=text("'DRAFT'"))
     responsable_id: Mapped[int] = mapped_column(
         _id_column(), ForeignKey("usuarios.id", ondelete="RESTRICT", onupdate="RESTRICT"), nullable=False
     )
@@ -189,6 +207,17 @@ class Documento(Base):
     updated_by_id: Mapped[int | None] = mapped_column(
         _id_column(), ForeignKey("usuarios.id", ondelete="RESTRICT", onupdate="RESTRICT"), nullable=True
     )
+    version_vigente_id: Mapped[int | None] = mapped_column(
+        _id_column(),
+        ForeignKey(
+            "versiones_documento.id",
+            ondelete="RESTRICT",
+            onupdate="RESTRICT",
+            name="fk_documentos_version_vigente",
+            use_alter=True,
+        ),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = _utc_column()
     updated_at: Mapped[datetime] = _utc_column(onupdate=True)
 
@@ -196,13 +225,22 @@ class Documento(Base):
     area: Mapped[Area] = relationship(back_populates="documentos")
     creador: Mapped[Usuario] = relationship(back_populates="documentos_creados", foreign_keys=[created_by_id])
     editor: Mapped[Usuario | None] = relationship(back_populates="documentos_actualizados", foreign_keys=[updated_by_id])
-    versiones: Mapped[list[VersionDocumento]] = relationship(back_populates="documento")
-    auditorias_asociadas: Mapped[list[DocumentoAuditoria]] = relationship(
-        primaryjoin="Documento.id == foreign(DocumentoAuditoria.documento_id)",
+    version_vigente: Mapped[VersionDocumento | None] = relationship(
+        foreign_keys=[version_vigente_id],
+        post_update=True,
+    )
+    versiones: Mapped[list[VersionDocumento]] = relationship(
         back_populates="documento",
+        foreign_keys="VersionDocumento.documento_id",
+        cascade="all, delete-orphan",
+    )
+    auditorias_asociadas: Mapped[list[DocumentoAuditoria]] = relationship(
+        back_populates="documento",
+        foreign_keys="DocumentoAuditoria.documento_id",
     )
     evidencias_relacionadas: Mapped[list[Evidencia]] = relationship(
-        primaryjoin="Documento.id == foreign(Evidencia.documento_id)", back_populates="documento"
+        back_populates="documento",
+        foreign_keys="Evidencia.documento_id",
     )
 
 
@@ -211,7 +249,6 @@ class VersionDocumento(Base):
     __table_args__ = (
         UniqueConstraint("documento_id", "numero_version", name="uq_versiones_documento_numero"),
         UniqueConstraint("storage_key", name="uq_versiones_documento_storage_key"),
-        UniqueConstraint("id", "documento_id", name="uq_versiones_documento_id_documento"),
         CheckConstraint("numero_version >= 1", name="ck_versiones_documento_numero_positivo"),
         CheckConstraint("tamano_bytes >= 0", name="ck_versiones_documento_tamano_no_negativo"),
         Index("ix_versiones_documento_sha256", "sha256"),
@@ -234,14 +271,18 @@ class VersionDocumento(Base):
     )
     created_at: Mapped[datetime] = _utc_column()
 
-    documento: Mapped[Documento] = relationship(back_populates="versiones")
+    documento: Mapped[Documento] = relationship(
+        back_populates="versiones",
+        foreign_keys=[documento_id],
+    )
     subido_por: Mapped[Usuario] = relationship(back_populates="versiones_cargadas")
     asociaciones_auditoria: Mapped[list[DocumentoAuditoria]] = relationship(
-        back_populates="version_documento", foreign_keys="DocumentoAuditoria.version_documento_id"
+        back_populates="version_documento",
+        foreign_keys="DocumentoAuditoria.version_documento_id",
     )
     evidencias_origen: Mapped[list[Evidencia]] = relationship(
-        primaryjoin="VersionDocumento.id == foreign(Evidencia.version_documento_id)",
         back_populates="version_documento",
+        foreign_keys="Evidencia.version_documento_id",
     )
     rondas_aprobacion: Mapped[list[RondaAprobacion]] = relationship(back_populates="version_documento")
 
@@ -249,13 +290,6 @@ class VersionDocumento(Base):
 class DocumentoAuditoria(Base):
     __tablename__ = "documentos_auditoria"
     __table_args__ = (
-        ForeignKeyConstraint(
-            ["version_documento_id", "documento_id"],
-            ["versiones_documento.id", "versiones_documento.documento_id"],
-            name="fk_documentos_auditoria_version_documento",
-            ondelete="RESTRICT",
-            onupdate="RESTRICT",
-        ),
         UniqueConstraint("auditoria_id", "version_documento_id", name="uq_documentos_auditoria_version"),
         CheckConstraint(
             "estado_revision IN ('PENDING', 'REVIEWED', 'ACCEPTED', 'REJECTED')",
@@ -263,17 +297,23 @@ class DocumentoAuditoria(Base):
         ),
         Index("ix_documentos_auditoria_estado", "auditoria_id", "estado_revision"),
         Index("ix_documentos_auditoria_documento", "documento_id"),
+        Index("ix_documentos_auditoria_version_doc", "version_documento_id"),
+        Index("ix_documentos_auditoria_asociado_por", "asociado_por_id"),
     )
 
     id: Mapped[int] = mapped_column(_id_column(), primary_key=True, autoincrement=True)
     auditoria_id: Mapped[int] = mapped_column(
         _id_column(), ForeignKey("auditorias.id", ondelete="RESTRICT", onupdate="RESTRICT"), nullable=False
     )
-    documento_id: Mapped[int] = mapped_column(_id_column(), nullable=False)
-    version_documento_id: Mapped[int] = mapped_column(_id_column(), nullable=False)
+    documento_id: Mapped[int] = mapped_column(
+        _id_column(), ForeignKey("documentos.id", ondelete="RESTRICT", onupdate="RESTRICT"), nullable=False
+    )
+    version_documento_id: Mapped[int] = mapped_column(
+        _id_column(), ForeignKey("versiones_documento.id", ondelete="RESTRICT", onupdate="RESTRICT"), nullable=False
+    )
     proposito: Mapped[str] = mapped_column(String(40), nullable=False)
     contexto: Mapped[str | None] = mapped_column(Text, nullable=True)
-    estado_revision: Mapped[str] = mapped_column(String(24), nullable=False, default="PENDING")
+    estado_revision: Mapped[str] = mapped_column(String(24), nullable=False, default="PENDING", server_default=text("'PENDING'"))
     observaciones: Mapped[str | None] = mapped_column(Text, nullable=True)
     asociado_por_id: Mapped[int] = mapped_column(
         _id_column(), ForeignKey("usuarios.id", ondelete="RESTRICT", onupdate="RESTRICT"), nullable=False
@@ -282,12 +322,8 @@ class DocumentoAuditoria(Base):
     updated_at: Mapped[datetime] = _utc_column(onupdate=True)
 
     auditoria: Mapped[Auditoria] = relationship(back_populates="documentos_asociados")
-    documento: Mapped[Documento] = relationship(
-        primaryjoin="Documento.id == foreign(DocumentoAuditoria.documento_id)",
-        back_populates="auditorias_asociadas",
-    )
+    documento: Mapped[Documento] = relationship(back_populates="auditorias_asociadas", foreign_keys=[documento_id])
     version_documento: Mapped[VersionDocumento] = relationship(
-        primaryjoin="VersionDocumento.id == foreign(DocumentoAuditoria.version_documento_id)",
         back_populates="asociaciones_auditoria",
         foreign_keys=[version_documento_id],
     )
@@ -297,15 +333,7 @@ class DocumentoAuditoria(Base):
 class Evidencia(Base):
     __tablename__ = "evidencias"
     __table_args__ = (
-        ForeignKeyConstraint(
-            ["version_documento_id", "documento_id"],
-            ["versiones_documento.id", "versiones_documento.documento_id"],
-            name="fk_evidencias_version_documento",
-            ondelete="RESTRICT",
-            onupdate="RESTRICT",
-        ),
         UniqueConstraint("storage_key", name="uq_evidencias_storage_key"),
-        UniqueConstraint("id", "auditoria_id", name="uq_evidencias_id_auditoria"),
         CheckConstraint(
             "tipo IN ('FILE', 'REFERENCE', 'NOTE', 'OTHER')", name="ck_evidencias_tipo"
         ),
@@ -314,8 +342,8 @@ class Evidencia(Base):
             name="ck_evidencias_version_requiere_documento",
         ),
         CheckConstraint(
-            "tipo <> 'FILE' OR storage_key IS NOT NULL",
-            name="ck_evidencias_archivo_storage_key",
+            "tipo <> 'FILE' OR (storage_key IS NOT NULL AND sha256 IS NOT NULL AND tamano_bytes IS NOT NULL)",
+            name="ck_evidencias_archivo_campos_completos",
         ),
         CheckConstraint(
             "tipo <> 'REFERENCE' OR referencia_url IS NOT NULL",
@@ -325,6 +353,7 @@ class Evidencia(Base):
         Index("ix_evidencias_documento", "documento_id"),
         Index("ix_evidencias_version", "version_documento_id"),
         Index("ix_evidencias_sha256", "sha256"),
+        Index("ix_evidencias_registrada_por", "registrada_por_id"),
     )
 
     id: Mapped[int] = mapped_column(_id_column(), primary_key=True, autoincrement=True)
@@ -340,8 +369,12 @@ class Evidencia(Base):
     tamano_bytes: Mapped[int | None] = mapped_column(mysql.BIGINT(unsigned=True), nullable=True)
     sha256: Mapped[str | None] = mapped_column(mysql.CHAR(64), nullable=True)
     referencia_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
-    documento_id: Mapped[int | None] = mapped_column(_id_column(), nullable=True)
-    version_documento_id: Mapped[int | None] = mapped_column(_id_column(), nullable=True)
+    documento_id: Mapped[int | None] = mapped_column(
+        _id_column(), ForeignKey("documentos.id", ondelete="RESTRICT", onupdate="RESTRICT"), nullable=True
+    )
+    version_documento_id: Mapped[int | None] = mapped_column(
+        _id_column(), ForeignKey("versiones_documento.id", ondelete="RESTRICT", onupdate="RESTRICT"), nullable=True
+    )
     registrada_por_id: Mapped[int] = mapped_column(
         _id_column(), ForeignKey("usuarios.id", ondelete="RESTRICT", onupdate="RESTRICT"), nullable=False
     )
@@ -350,15 +383,18 @@ class Evidencia(Base):
 
     auditoria: Mapped[Auditoria] = relationship(back_populates="evidencias")
     documento: Mapped[Documento | None] = relationship(
-        primaryjoin="Documento.id == foreign(Evidencia.documento_id)", back_populates="evidencias_relacionadas"
+        back_populates="evidencias_relacionadas",
+        foreign_keys=[documento_id],
     )
     version_documento: Mapped[VersionDocumento | None] = relationship(
-        primaryjoin="VersionDocumento.id == foreign(Evidencia.version_documento_id)",
         back_populates="evidencias_origen",
+        foreign_keys=[version_documento_id],
     )
     registrada_por: Mapped[Usuario] = relationship(back_populates="evidencias_registradas")
     hallazgo_links: Mapped[list[HallazgoEvidencia]] = relationship(
-        primaryjoin="Evidencia.id == foreign(HallazgoEvidencia.evidencia_id)", back_populates="evidencia"
+        back_populates="evidencia",
+        foreign_keys="HallazgoEvidencia.evidencia_id",
+        cascade="all, delete-orphan",
     )
 
 
@@ -366,7 +402,6 @@ class Hallazgo(Base):
     __tablename__ = "hallazgos"
     __table_args__ = (
         UniqueConstraint("auditoria_id", "numero", name="uq_hallazgos_auditoria_numero"),
-        UniqueConstraint("id", "auditoria_id", name="uq_hallazgos_id_auditoria"),
         CheckConstraint("numero >= 1", name="ck_hallazgos_numero_positivo"),
         CheckConstraint(
             "severidad IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')", name="ck_hallazgos_severidad"
@@ -382,6 +417,8 @@ class Hallazgo(Base):
         Index("ix_hallazgos_auditoria_estado", "auditoria_id", "estado"),
         Index("ix_hallazgos_responsable_estado_limite", "responsable_id", "estado", "fecha_limite"),
         Index("ix_hallazgos_detectado_en", "detectado_en"),
+        Index("ix_hallazgos_created_by", "created_by_id"),
+        Index("ix_hallazgos_cerrado_por", "cerrado_por_id"),
     )
 
     id: Mapped[int] = mapped_column(_id_column(), primary_key=True, autoincrement=True)
@@ -393,12 +430,12 @@ class Hallazgo(Base):
     descripcion: Mapped[str] = mapped_column(Text, nullable=False)
     categoria: Mapped[str] = mapped_column(String(40), nullable=False)
     severidad: Mapped[str] = mapped_column(String(16), nullable=False)
-    estado: Mapped[str] = mapped_column(String(24), nullable=False, default="OPEN")
+    estado: Mapped[str] = mapped_column(String(24), nullable=False, default="OPEN", server_default=text("'OPEN'"))
     responsable_id: Mapped[int | None] = mapped_column(
         _id_column(), ForeignKey("usuarios.id", ondelete="RESTRICT", onupdate="RESTRICT"), nullable=True
     )
     detectado_en: Mapped[datetime] = _utc_column()
-    fecha_limite: Mapped[Any | None] = mapped_column(mysql.DATE(), nullable=True)
+    fecha_limite: Mapped[date | None] = mapped_column(mysql.DATE(), nullable=True)
     resolucion: Mapped[str | None] = mapped_column(Text, nullable=True)
     cerrado_por_id: Mapped[int | None] = mapped_column(
         _id_column(), ForeignKey("usuarios.id", ondelete="RESTRICT", onupdate="RESTRICT"), nullable=True
@@ -423,49 +460,44 @@ class Hallazgo(Base):
     creador: Mapped[Usuario] = relationship(back_populates="hallazgos_creados", foreign_keys=[created_by_id])
     editor: Mapped[Usuario | None] = relationship(back_populates="hallazgos_actualizados", foreign_keys=[updated_by_id])
     evidencia_links: Mapped[list[HallazgoEvidencia]] = relationship(
-        primaryjoin="Hallazgo.id == foreign(HallazgoEvidencia.hallazgo_id)", back_populates="hallazgo"
+        back_populates="hallazgo",
+        foreign_keys="HallazgoEvidencia.hallazgo_id",
+        cascade="all, delete-orphan",
     )
 
 
 class HallazgoEvidencia(Base):
     __tablename__ = "hallazgos_evidencias"
     __table_args__ = (
-        ForeignKeyConstraint(
-            ["hallazgo_id", "auditoria_id"],
-            ["hallazgos.id", "hallazgos.auditoria_id"],
-            name="fk_hallazgos_evidencias_hallazgo_auditoria",
-            ondelete="RESTRICT",
-            onupdate="RESTRICT",
-        ),
-        ForeignKeyConstraint(
-            ["evidencia_id", "auditoria_id"],
-            ["evidencias.id", "evidencias.auditoria_id"],
-            name="fk_hallazgos_evidencias_evidencia_auditoria",
-            ondelete="RESTRICT",
-            onupdate="RESTRICT",
-        ),
-        ForeignKeyConstraint(
-            ["vinculada_por_id"],
-            ["usuarios.id"],
-            name="fk_hallazgos_evidencias_vinculada_por",
-            ondelete="RESTRICT",
-            onupdate="RESTRICT",
-        ),
         Index("ix_hallazgos_evidencias_evidencia", "evidencia_id", "hallazgo_id"),
+        Index("ix_hallazgos_evidencias_vinculada_por", "vinculada_por_id"),
     )
 
-    auditoria_id: Mapped[int] = mapped_column(_id_column(), nullable=False)
-    hallazgo_id: Mapped[int] = mapped_column(_id_column(), primary_key=True)
-    evidencia_id: Mapped[int] = mapped_column(_id_column(), primary_key=True)
-    vinculada_por_id: Mapped[int] = mapped_column(_id_column(), nullable=False)
+    hallazgo_id: Mapped[int] = mapped_column(
+        _id_column(),
+        ForeignKey("hallazgos.id", ondelete="RESTRICT", onupdate="RESTRICT"),
+        primary_key=True,
+    )
+    evidencia_id: Mapped[int] = mapped_column(
+        _id_column(),
+        ForeignKey("evidencias.id", ondelete="RESTRICT", onupdate="RESTRICT"),
+        primary_key=True,
+    )
+    vinculada_por_id: Mapped[int] = mapped_column(
+        _id_column(),
+        ForeignKey("usuarios.id", ondelete="RESTRICT", onupdate="RESTRICT"),
+        nullable=False,
+    )
     vinculada_en: Mapped[datetime] = _utc_column()
     contexto: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     hallazgo: Mapped[Hallazgo] = relationship(
-        primaryjoin="Hallazgo.id == foreign(HallazgoEvidencia.hallazgo_id)", back_populates="evidencia_links"
+        back_populates="evidencia_links",
+        foreign_keys=[hallazgo_id],
     )
     evidencia: Mapped[Evidencia] = relationship(
-        primaryjoin="Evidencia.id == foreign(HallazgoEvidencia.evidencia_id)", back_populates="hallazgo_links"
+        back_populates="hallazgo_links",
+        foreign_keys=[evidencia_id],
     )
     vinculada_por: Mapped[Usuario] = relationship(foreign_keys=[vinculada_por_id])
 
@@ -484,6 +516,7 @@ class RondaAprobacion(Base):
             name="ck_rondas_terminal_resuelta",
         ),
         Index("ix_rondas_version_estado", "version_documento_id", "estado"),
+        Index("ix_rondas_solicitada_por", "solicitada_por_id"),
     )
 
     id: Mapped[int] = mapped_column(_id_column(), primary_key=True, autoincrement=True)
@@ -493,17 +526,21 @@ class RondaAprobacion(Base):
         nullable=False,
     )
     numero_ronda: Mapped[int] = mapped_column(mysql.INTEGER(unsigned=True), nullable=False)
-    estado: Mapped[str] = mapped_column(String(24), nullable=False, default="PENDING")
+    estado: Mapped[str] = mapped_column(String(24), nullable=False, default="PENDING", server_default=text("'PENDING'"))
     solicitada_por_id: Mapped[int] = mapped_column(
         _id_column(), ForeignKey("usuarios.id", ondelete="RESTRICT", onupdate="RESTRICT"), nullable=False
     )
     solicitada_en: Mapped[datetime] = _utc_column()
     resuelta_en: Mapped[datetime | None] = mapped_column(mysql.DATETIME(fsp=6), nullable=True)
     created_at: Mapped[datetime] = _utc_column()
+    updated_at: Mapped[datetime] = _utc_column(onupdate=True)
 
     version_documento: Mapped[VersionDocumento] = relationship(back_populates="rondas_aprobacion")
     solicitada_por: Mapped[Usuario] = relationship(back_populates="rondas_solicitadas")
-    decisiones: Mapped[list[DecisionAprobacion]] = relationship(back_populates="ronda")
+    decisiones: Mapped[list[DecisionAprobacion]] = relationship(
+        back_populates="ronda",
+        cascade="all, delete-orphan",
+    )
 
 
 class DecisionAprobacion(Base):
@@ -531,10 +568,12 @@ class DecisionAprobacion(Base):
     aprobador_id: Mapped[int] = mapped_column(
         _id_column(), ForeignKey("usuarios.id", ondelete="RESTRICT", onupdate="RESTRICT"), nullable=False
     )
-    estado: Mapped[str] = mapped_column(String(24), nullable=False, default="PENDING")
+    estado: Mapped[str] = mapped_column(String(24), nullable=False, default="PENDING", server_default=text("'PENDING'"))
     comentario: Mapped[str | None] = mapped_column(Text, nullable=True)
     asignada_en: Mapped[datetime] = _utc_column()
     decidida_en: Mapped[datetime | None] = mapped_column(mysql.DATETIME(fsp=6), nullable=True)
+    created_at: Mapped[datetime] = _utc_column()
+    updated_at: Mapped[datetime] = _utc_column(onupdate=True)
 
     ronda: Mapped[RondaAprobacion] = relationship(back_populates="decisiones")
     aprobador: Mapped[Usuario] = relationship(back_populates="decisiones_aprobacion")

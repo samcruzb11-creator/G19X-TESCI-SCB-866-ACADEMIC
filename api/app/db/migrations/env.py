@@ -27,6 +27,7 @@ def run_migrations_online() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args={"init_command": "SET time_zone='+00:00'"},
     )
     with connectable.connect() as connection:
         context.configure(
