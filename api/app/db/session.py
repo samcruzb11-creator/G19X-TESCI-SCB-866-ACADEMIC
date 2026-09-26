@@ -9,3 +9,12 @@ engine = create_engine(
     connect_args={"init_command": "SET time_zone='+00:00'"},
 )
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+
+def get_db():
+    """Proporciona una sesión por request y garantiza su cierre."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
