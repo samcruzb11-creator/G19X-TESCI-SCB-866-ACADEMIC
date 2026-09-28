@@ -21,14 +21,48 @@ function api_failure(int $status = 0): array
     return ['ok' => false, 'status' => $status, 'data' => [], 'message' => 'No fue posible cargar la información. Intenta nuevamente en unos momentos.'];
 }
 
+/** Convert upstream errors to known codes; never render upstream messages verbatim. */
+function api_error_response(int $status, string $body): array
+{
+    $result = api_failure($status);
+    $error = json_decode($body, true);
+    $detail = is_array($error) ? ($error['detail'] ?? null) : null;
+    $result['error_code'] = match ($status) {
+        422 => 'validation', 404 => 'not_found', 409 => 'conflict',
+        default => $status >= 500 ? 'server' : 'request',
+    };
+    $result['error_fields'] = [];
+    if (in_array($status, [400, 409], true) && is_string($detail)
+        && str_starts_with($detail, 'Ya existe un documento con el código ')) {
+        $result['error_code'] = 'duplicate_code';
+    }
+    if ($status === 400 && is_string($detail) && preg_match('/\AUsuario con ID [0-9]+ no encontrado\z/', $detail)) {
+        $result['error_code'] = 'creator_not_found';
+    }
+    if ($status === 422 && is_array($detail)) {
+        foreach ($detail as $item) {
+            $location = is_array($item) ? ($item['loc'] ?? []) : [];
+            if (!is_array($location)) continue;
+            $field = $location[1] ?? null;
+            if (in_array($field, ['codigo', 'titulo', 'descripcion', 'tipo', 'estado', 'area_id', 'responsable_id', 'creador_id'], true)) {
+                $result['error_fields'][] = $field;
+            }
+        }
+    }
+    return $result;
+}
+
 /** Shared JSON transport. cURL sets the multipart boundary when fields contain CURLFile. */
-function api_request(string $method, string $path, array $query = [], ?array $multipart = null): array
+function api_request(string $method, string $path, array $query = [], ?array $multipart = null, ?array $json = null): array
 {
     $url = api_url($path, $query);
     if (!function_exists('curl_init') || $url === null || !in_array($method, ['GET', 'POST'], true)) {
         return api_failure();
     }
-    if ($method === 'POST' && !preg_match('~\A/api/v1/documentos/[1-9][0-9]*/versiones\z~', $path)) {
+    if ($method === 'POST' && !(
+        ($path === '/api/v1/documentos' && $json !== null && $multipart === null)
+        || (preg_match('~\A/api/v1/documentos/[1-9][0-9]*/versiones\z~', $path) && $multipart !== null && $json === null)
+    )) {
         return api_failure();
     }
     $handle = curl_init($url);
@@ -46,12 +80,17 @@ function api_request(string $method, string $path, array $query = [], ?array $mu
         ]);
         if ($method === 'POST') {
             curl_setopt($handle, CURLOPT_POST, true);
-            curl_setopt($handle, CURLOPT_POSTFIELDS, $multipart ?? []);
+            if ($json !== null) {
+                curl_setopt($handle, CURLOPT_HTTPHEADER, ['Accept: application/json', 'Content-Type: application/json']);
+                curl_setopt($handle, CURLOPT_POSTFIELDS, json_encode($json, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+            } else {
+                curl_setopt($handle, CURLOPT_POSTFIELDS, $multipart);
+            }
         }
         $body = curl_exec($handle);
         $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
         if ($body === false || $status < 200 || $status >= 300) {
-            return api_failure($status);
+            return $body === false ? api_failure($status) : api_error_response($status, $body);
         }
         $data = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
         if (!is_array($data)) {
@@ -63,6 +102,11 @@ function api_request(string $method, string $path, array $query = [], ?array $mu
     } finally {
         curl_close($handle);
     }
+}
+
+function api_post_json(string $path, array $payload, array $query = []): array
+{
+    return api_request('POST', $path, $query, null, $payload);
 }
 
 function api_get(string $path, array $query = []): array

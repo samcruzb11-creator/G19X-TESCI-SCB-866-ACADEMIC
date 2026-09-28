@@ -2,18 +2,10 @@
 declare(strict_types=1);
 if (!isset($route, $documentId) || $documentId === null) { http_response_code(404); exit; }
 
-$sessionPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'sistema-trazabilidad-frontend-sessions';
-$sessionReady = (is_dir($sessionPath) || @mkdir($sessionPath, 0700, true)) && @session_start([
-    'save_path' => $sessionPath,
-    'cookie_httponly' => true,
-    'cookie_samesite' => 'Lax',
-    'use_strict_mode' => true,
-]);
-if (!$sessionReady) $_SESSION = [];
-header('Cache-Control: no-store');
+$sessionReady = frontend_session_start();
 $csrfToken = $sessionReady ? ($_SESSION['csrf_token'] ??= bin2hex(random_bytes(32))) : '';
-$successMessage = $_SESSION['version_success'][$documentId] ?? null;
-unset($_SESSION['version_success'][$documentId]);
+$successMessage = $_SESSION['document_success'][$documentId] ?? $_SESSION['version_success'][$documentId] ?? null;
+unset($_SESSION['document_success'][$documentId], $_SESSION['version_success'][$documentId]);
 $uploadError = $sessionReady ? null : 'No fue posible habilitar el envío de archivos. Recarga la página e intenta nuevamente.';
 $downloadError = null;
 $selectedUser = positive_id($_POST['subido_por_id'] ?? null);
@@ -71,7 +63,7 @@ if ($method === 'POST') {
     $file = $_FILES['archivo'] ?? null;
     if (!$sessionReady) {
         $uploadError = 'No fue posible habilitar el envío de archivos. Recarga la página e intenta nuevamente.';
-    } elseif (!is_string($token) || !hash_equals($csrfToken, $token)) {
+    } elseif (!csrf_valid($token)) {
         $uploadError = 'No fue posible validar el envío. Recarga la ficha y selecciona nuevamente el archivo. Si supera el límite de carga, elige un archivo más pequeño.';
     } elseif (!$userResult['ok'] || !in_array($selectedUser, array_column($uploadUsers, 'id'), true)) {
         $uploadError = 'Selecciona un usuario disponible para registrar la versión.';

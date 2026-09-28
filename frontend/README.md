@@ -14,8 +14,8 @@ http://127.0.0.1:8000. La URL de API se configura en `config/config.php`.
 El servidor integrado de PHP se utiliza solamente para desarrollo local.
 
 Rutas implementadas: `index.php?pagina=dashboard`,
-`index.php?pagina=documentos` e `index.php?pagina=documento&id=1`.
-Auditorías, evidencias y nuevo documento
+`index.php?pagina=documentos`, `index.php?pagina=documento_nuevo`
+e `index.php?pagina=documento&id=1`. Auditorías y evidencias
 muestran una vista provisional explícita. Las rutas desconocidas devuelven 404.
 
 El dashboard consulta hasta 100 documentos y hasta 50 auditorías (límite
@@ -46,3 +46,28 @@ de PHP y se muestran en el formulario. El archivo debe dejar margen para los
 campos y las cabeceras del envío multipart dentro de `post_max_size`.
 No se envían cargas de validación a la base oficial. Queda pendiente una carga
 manual autorizada de un archivo real para validar el flujo completo de escritura.
+
+## Alta de documentos
+
+El formulario de alta envía `POST /api/v1/documentos?creador_id=...` con JSON:
+`codigo`, `titulo`, `descripcion`, `tipo`, `estado`, `area_id`, `responsable_id`.
+Según OpenAPI, código tiene entre 2 y 80 caracteres, título entre 3 y 240 y tipo
+entre 2 y 40. Tipo es texto libre, sin catálogo ni enum. Descripción es opcional.
+Estado usa los valores documentados DRAFT, ACTIVE, OBSOLETE y ARCHIVED, con DRAFT
+como predeterminado. Los selectores consultan áreas y usuarios activos.
+
+PHP valida los campos y el token CSRF antes de enviar. Las sesiones y CSRF se
+comparten con la ficha. Un 201 con ID válido produce una redirección 303 a la
+ficha y un mensaje de sesión que se consume una sola vez. La primera versión se
+adjunta después, mediante el formulario ya disponible en la ficha.
+
+El duplicado de código actualmente responde HTTP 400 con un detalle identificable;
+el frontend lo traduce sin mostrar el JSON original. Un 409 genérico se muestra
+como conflicto, sin afirmar que sea un duplicado. Los 422 marcan los campos
+identificados por la API. Los fallos 500 o de transporte piden consultar el
+listado antes de reintentar, porque la respuesta podría fallar después del alta.
+
+Validación controlada realizada: documento ID 3, código
+`DEV-PROTOTIPO-PHP-20260928-001`, estado DRAFT, sin versiones. Creado únicamente
+mediante el frontend y FastAPI; conserva su evento de creación. Los documentos
+anteriores no se modificaron.
