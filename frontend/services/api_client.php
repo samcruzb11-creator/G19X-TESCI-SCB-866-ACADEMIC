@@ -6,7 +6,7 @@ require_once __DIR__ . '/../config/config.php';
 /** Only known API resources may be addressed; never accept a client-supplied URL. */
 function api_url(string $path, array $query = []): ?string
 {
-    if (!preg_match('~\A/api/v1/(?:areas|usuarios|auditorias|documentos(?:/[1-9][0-9]*(?:/(?:historial|versiones(?:/[1-9][0-9]*/descargar)?))?)?)\z~', $path)) {
+    if (!preg_match('~\A/api/v1/(?:areas|usuarios|auditorias|evidencias/(?:archivo|logica|[1-9][0-9]*(?:/descargar)?)|documentos(?:/[1-9][0-9]*(?:/(?:historial|versiones(?:/[1-9][0-9]*/descargar)?))?)?)\z~', $path)) {
         return null;
     }
     $url = rtrim(API_BASE_URL, '/') . $path;
@@ -32,6 +32,9 @@ function api_error_response(int $status, string $body): array
         default => $status >= 500 ? 'server' : 'request',
     };
     $result['error_fields'] = [];
+    if ($status === 409 && $detail === 'El codigo de auditoria ya existe') {
+        $result['error_code'] = 'duplicate_code';
+    }
     if (in_array($status, [400, 409], true) && is_string($detail)
         && str_starts_with($detail, 'Ya existe un documento con el código ')) {
         $result['error_code'] = 'duplicate_code';
@@ -44,7 +47,7 @@ function api_error_response(int $status, string $body): array
             $location = is_array($item) ? ($item['loc'] ?? []) : [];
             if (!is_array($location)) continue;
             $field = $location[1] ?? null;
-            if (in_array($field, ['codigo', 'titulo', 'descripcion', 'tipo', 'estado', 'area_id', 'responsable_id', 'creador_id'], true)) {
+            if (in_array($field, ['codigo', 'titulo', 'descripcion', 'tipo', 'estado', 'area_id', 'responsable_id', 'creador_id', 'nombre', 'alcance', 'created_by_id', 'fecha_inicio_prevista', 'fecha_fin_prevista', 'auditoria_id', 'registrada_por_id', 'documento_id', 'version_documento_id', 'referencia_url', 'archivo'], true)) {
                 $result['error_fields'][] = $field;
             }
         }
@@ -60,8 +63,8 @@ function api_request(string $method, string $path, array $query = [], ?array $mu
         return api_failure();
     }
     if ($method === 'POST' && !(
-        ($path === '/api/v1/documentos' && $json !== null && $multipart === null)
-        || (preg_match('~\A/api/v1/documentos/[1-9][0-9]*/versiones\z~', $path) && $multipart !== null && $json === null)
+        (in_array($path, ['/api/v1/documentos', '/api/v1/auditorias', '/api/v1/evidencias/logica'], true) && $json !== null && $multipart === null)
+        || (($path === '/api/v1/evidencias/archivo' || preg_match('~\A/api/v1/documentos/[1-9][0-9]*/versiones\z~', $path)) && $multipart !== null && $json === null)
     )) {
         return api_failure();
     }
@@ -124,6 +127,20 @@ function api_get_object(string $path, array $query = []): array
 {
     $result = api_request('GET', $path, $query);
     return $result['ok'] && array_is_list($result['data']) ? api_failure($result['status']) : $result;
+}
+
+/** Read all pages for small local catalogs; never present a truncated result as complete. */
+function api_get_all(string $path): array
+{
+    if (!in_array($path, ['/api/v1/auditorias', '/api/v1/documentos'], true)) return api_failure();
+    $rows = [];
+    for ($offset = 0; $offset < 10000; $offset += 200) {
+        $result = api_get($path, ['limit' => 200, 'offset' => $offset]);
+        if (!$result['ok']) return $result;
+        $rows = array_merge($rows, $result['data']);
+        if (count($result['data']) < 200) return ['ok' => true, 'status' => 200, 'data' => $rows, 'message' => ''];
+    }
+    return api_failure();
 }
 
 /** Build separately so multipart can be checked without sending a mutation. */

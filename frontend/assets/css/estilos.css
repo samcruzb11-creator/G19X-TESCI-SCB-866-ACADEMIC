@@ -145,6 +145,10 @@ h3 { font-size: 16px; font-weight: 600; }
 .form-section-heading p { color: var(--muted); font-size: 12px; margin-top: 4px; }
 .has-error input, .has-error textarea, .has-error select { border-color: #a96262; }
 .field-error { color: #8d4545; font-size: 12px; margin-top: 6px; }
+.lookup-form { display: flex; align-items: flex-end; gap: 16px; margin-top: 24px; flex-wrap: wrap; }
+.lookup-form .form-field { width: 240px; max-width: 100%; }
+.integrity-hash { font-family: Consolas, monospace; overflow-wrap: anywhere; font-size: 12px; user-select: all; }
+.page-heading > .document-actions { margin: 0; }
 
 /* 5. Desktop and smaller viewports */
 @media (max-width: 1400px) {

@@ -34,18 +34,7 @@ if ($action === 'descargar' && $method === 'GET') {
     }
     $download = $version !== null ? api_download('/api/v1/documentos/' . $documentId . '/versiones/' . $versionId . '/descargar') : api_failure($versionResult['ok'] ? 404 : 502);
     if ($download['ok']) {
-        $filename = is_string($version['nombre_original'] ?? null) ? $version['nombre_original'] : 'documento';
-        $filename = basename(str_replace('\\', '/', $filename));
-        $filename = preg_replace('/[\x00-\x1F\x7F]/', '', $filename) ?: 'documento';
-        $mime = is_string($version['mime_type'] ?? null) ? $version['mime_type'] : '';
-        if (!preg_match('~\A[a-zA-Z0-9!#$&^_.+-]+/[a-zA-Z0-9!#$&^_.+-]+\z~', $mime)) $mime = 'application/octet-stream';
-        session_write_close();
-        header('Content-Type: ' . $mime);
-        header("Content-Disposition: attachment; filename=\"documento\"; filename*=UTF-8''" . rawurlencode($filename));
-        header('Content-Length: ' . fstat($download['stream'])['size']);
-        fpassthru($download['stream']);
-        fclose($download['stream']);
-        exit;
+        send_api_download($download, $version);
     }
     http_response_code($download['status'] === 404 ? 404 : 502);
     $downloadError = $download['status'] === 404 ? 'La versión o el archivo solicitado no existen.' : 'No fue posible descargar la versión. Intenta nuevamente.';
