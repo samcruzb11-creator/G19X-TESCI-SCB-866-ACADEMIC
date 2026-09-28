@@ -1,21 +1,25 @@
 """Endpoints REST para documentos y sus versiones."""
 
 from typing import Annotated
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, joinedload, selectinload, raiseload
 
 from app.db.session import get_db
-from app.models.entities import Documento
+from app.models.entities import Documento, EventoAuditoria, VersionDocumento
 from app.schemas.documento import (
-    DocumentoConVersionesRead,
+    DocumentoDetalleRead,
     DocumentoCreate,
     DocumentoRead,
     DocumentoUpdate,
     VersionDocumentoRead,
 )
 from app.services.documento_service import documento_service
+from app.services.storage_service import storage_service
+from app.schemas.evento import EventoAuditoriaRead
 
 router = APIRouter(prefix="/documentos", tags=["documentos"])
 
@@ -46,7 +50,7 @@ def listar_documentos(
     offset: Annotated[int, Query(ge=0)] = 0,
     db: Session = Depends(get_db),
 ):
-    stmt = select(Documento)
+    stmt = select(Documento).options(joinedload(Documento.version_vigente))
     if tipo:
         stmt = stmt.where(Documento.tipo == tipo)
     if estado:
@@ -55,7 +59,7 @@ def listar_documentos(
     return list(db.scalars(stmt).all())
 
 
-@router.get("/{documento_id}", response_model=DocumentoRead | DocumentoConVersionesRead)
+@router.get("/{documento_id}", response_model=DocumentoDetalleRead, response_model_exclude_unset=True)
 def obtener_documento(
     documento_id: int,
     incluir_versiones: bool = False,
@@ -66,10 +70,15 @@ def obtener_documento(
     )
     if incluir_versiones:
         stmt = stmt.options(selectinload(Documento.versiones))
+    else:
+        stmt = stmt.options(raiseload(Documento.versiones))
     documento = db.scalar(stmt)
     if documento is None:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
-    return documento
+    data = DocumentoRead.model_validate(documento).model_dump()
+    if incluir_versiones:
+        data["versiones"] = [VersionDocumentoRead.model_validate(v) for v in documento.versiones]
+    return DocumentoDetalleRead(**data)
 
 
 @router.patch("/{documento_id}", response_model=DocumentoRead)
@@ -114,3 +123,31 @@ def listar_versiones(documento_id: int, db: Session = Depends(get_db)):
     if db.get(Documento, documento_id) is None:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
     return documento_service.listar_versiones(db, documento_id)
+
+
+@router.get("/{documento_id}/versiones/{version_id}/descargar", response_class=FileResponse)
+def descargar_version(documento_id: int, version_id: int, db: Session = Depends(get_db)):
+    version = db.scalar(select(VersionDocumento).where(
+        VersionDocumento.id == version_id,
+        VersionDocumento.documento_id == documento_id,
+    ))
+    if version is None:
+        raise HTTPException(status_code=404, detail="Version no encontrada")
+    try:
+        path = storage_service.get_absolute_path(version.storage_key)
+        if not path.is_file():
+            raise FileNotFoundError
+    except (ValueError, OSError):
+        raise HTTPException(status_code=404, detail="Archivo no encontrado") from None
+    filename = Path(version.nombre_original.replace("\\", "/")).name or path.name
+    return FileResponse(path, filename=filename, media_type=version.mime_type or "application/octet-stream")
+
+
+@router.get("/{documento_id}/historial", response_model=list[EventoAuditoriaRead])
+def historial_documento(documento_id: int, db: Session = Depends(get_db)):
+    if db.get(Documento, documento_id) is None:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    return list(db.scalars(select(EventoAuditoria).where(
+        EventoAuditoria.entidad_tipo == "DOCUMENTO",
+        EventoAuditoria.entidad_id == str(documento_id),
+    ).order_by(EventoAuditoria.ocurrido_en, EventoAuditoria.id)).all())

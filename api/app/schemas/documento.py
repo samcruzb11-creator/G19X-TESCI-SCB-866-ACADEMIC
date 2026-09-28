@@ -138,6 +138,12 @@ class DocumentoConVersionesRead(DocumentoRead):
     model_config = ConfigDict(from_attributes=True)
 
 
+class DocumentoDetalleRead(DocumentoRead):
+    """Versiones only appears when explicitly requested by the client."""
+
+    versiones: list[VersionDocumentoRead] | None = None
+
+
 # ===========================================================================
 # DocumentoAuditoria (pivot)
 # ===========================================================================

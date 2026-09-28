@@ -9,7 +9,6 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
-from app.db.session import SessionLocal
 from app.models.entities import Area, Auditoria, Documento, EventoAuditoria, Evidencia, Usuario, VersionDocumento
 from app.schemas.documento import DocumentoCreate
 from app.services.documento_service import DocumentoService
@@ -18,9 +17,9 @@ from app.services.storage_service import StorageService
 
 
 @pytest.fixture(autouse=True)
-def clean_database():
+def clean_database(db_session_factory):
     """Limpia las tablas de negocio antes y después de cada prueba de integración."""
-    session = SessionLocal()
+    session = db_session_factory()
     try:
         session.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
         tables = [
@@ -46,7 +45,7 @@ def clean_database():
 
     yield
 
-    session = SessionLocal()
+    session = db_session_factory()
     try:
         session.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
         for t in tables:
@@ -92,10 +91,10 @@ def test_storage_service_streaming_and_integrity():
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-def test_documento_version_creation_and_audit_trail():
+def test_documento_version_creation_and_audit_trail(db_session_factory):
     """Valida la creación atómica de versión, actualización de versión vigente y bitácora de auditoría."""
     temp_dir = mkdtemp()
-    session = SessionLocal()
+    session = db_session_factory()
     try:
         storage = StorageService(base_path=temp_dir)
         doc_service = DocumentoService(storage=storage)
@@ -187,10 +186,10 @@ def test_documento_version_creation_and_audit_trail():
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-def test_evidencia_archivo_creation_and_cleanup_on_failure():
+def test_evidencia_archivo_creation_and_cleanup_on_failure(db_session_factory):
     """Valida registro probatorio de evidencias y que un fallo en BD elimine el archivo físico."""
     temp_dir = mkdtemp()
-    session = SessionLocal()
+    session = db_session_factory()
     try:
         storage = StorageService(base_path=temp_dir)
         ev_service = EvidenciaService(storage=storage)
@@ -252,10 +251,10 @@ def test_evidencia_archivo_creation_and_cleanup_on_failure():
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-def test_atomic_cleanup_on_database_error():
+def test_atomic_cleanup_on_database_error(db_session_factory):
     """Valida que si la BD falla, el archivo guardado en disco sea eliminado inmediatamente."""
     temp_dir = mkdtemp()
-    session = SessionLocal()
+    session = db_session_factory()
     try:
         storage = StorageService(base_path=temp_dir)
         doc_service = DocumentoService(storage=storage)

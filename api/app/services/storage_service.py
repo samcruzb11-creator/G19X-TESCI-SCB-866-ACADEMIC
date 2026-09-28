@@ -189,7 +189,7 @@ class StorageService:
             return False
         target_path = (self.base_path / storage_key).resolve()
         # Seguridad: la ruta resuelta debe permanecer dentro de base_path
-        if not str(target_path).startswith(str(self.base_path)):
+        if not target_path.is_relative_to(self.base_path):
             return False
         if target_path.exists() and target_path.is_file():
             try:
@@ -205,8 +205,11 @@ class StorageService:
         Raises:
             ValueError: Si ``storage_key`` intenta escapar del ``base_path``.
         """
-        target = (self.base_path / storage_key).resolve()
-        if not str(target).startswith(str(self.base_path)):
+        key = Path(storage_key)
+        if key.is_absolute() or key.drive or ".." in key.parts or ":" in storage_key:
+            raise ValueError("Ruta de almacenamiento no permitida")
+        target = (self.base_path / key).resolve()
+        if not target.is_relative_to(self.base_path):
             raise ValueError(f"Acceso de ruta no permitido para storage_key: '{storage_key}'")
         return target
 

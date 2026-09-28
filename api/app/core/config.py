@@ -1,7 +1,13 @@
 from functools import lru_cache
+from pathlib import Path
 from urllib.parse import quote_plus
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+API_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = API_ROOT.parent
+STORAGE_ROOT = PROJECT_ROOT / "storage"
 
 
 class Settings(BaseSettings):
@@ -18,10 +24,17 @@ class Settings(BaseSettings):
 
     jwt_secret_key: str = "replace-with-a-long-random-secret"
     jwt_algorithm: str = "HS256"
-    storage_path: str = "storage"
+    storage_path: Path = STORAGE_ROOT
+
+    @field_validator("storage_path", mode="before")
+    @classmethod
+    def canonical_storage(cls, value: object) -> Path:
+        # The application always uses the existing project storage directory.
+        # Tests can still inject a temporary base_path into StorageService.
+        return STORAGE_ROOT
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=API_ROOT / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
