@@ -116,16 +116,11 @@ class EvidenciaArchivoCreate(BaseModel):
 # EvidenciaRead — respuesta completa del API
 # ===========================================================================
 
-class EvidenciaRead(EvidenciaBase):
-    """Esquema de salida para una evidencia persistida con sus metadatos forenses.
-
-    Incluye los campos asignados por el servidor (``storage_key``, ``sha256``,
-    ``tamano_bytes``, ``nombre_original``, ``mime_type``).
-    """
+class EvidenciaListRead(EvidenciaBase):
+    """Metadatos públicos para el listado, sin claves internas de almacenamiento."""
 
     id: int
     # Metadatos de archivo — solo presentes cuando tipo == FILE
-    storage_key: str | None = None
     nombre_original: str | None = None
     mime_type: str | None = None
     tamano_bytes: int | None = None
@@ -138,3 +133,9 @@ class EvidenciaRead(EvidenciaBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class EvidenciaRead(EvidenciaListRead):
+    """Contrato existente de detalle y registro, conservado por compatibilidad."""
+
+    storage_key: str | None = None

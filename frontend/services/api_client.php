@@ -6,7 +6,7 @@ require_once __DIR__ . '/../config/config.php';
 /** Only known API resources may be addressed; never accept a client-supplied URL. */
 function api_url(string $path, array $query = []): ?string
 {
-    if (!preg_match('~\A/api/v1/(?:areas|usuarios|auditorias|evidencias/(?:archivo|logica|[1-9][0-9]*(?:/descargar)?)|documentos(?:/[1-9][0-9]*(?:/(?:historial|versiones(?:/[1-9][0-9]*/descargar)?))?)?)\z~', $path)) {
+    if (!preg_match('~\A/api/v1/(?:areas|usuarios|auditorias|evidencias(?:/(?:archivo|logica|[1-9][0-9]*(?:/descargar)?))?|documentos(?:/[1-9][0-9]*(?:/(?:historial|versiones(?:/[1-9][0-9]*/descargar)?))?)?)\z~', $path)) {
         return null;
     }
     $url = rtrim(API_BASE_URL, '/') . $path;

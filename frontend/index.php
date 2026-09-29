@@ -58,6 +58,9 @@ if (!$notFound && in_array($page, ['evidencia_archivo', 'evidencia_logica'], tru
 if (!$notFound && $page === 'evidencia') {
     require __DIR__ . '/services/evidencia_controller.php';
 }
+if (!$notFound && $page === 'evidencias') {
+    require __DIR__ . '/services/evidencias_controller.php';
+}
 if (!$notFound && $page === 'versiones_documento') {
     require __DIR__ . '/services/versiones_json.php';
 }

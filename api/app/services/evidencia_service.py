@@ -131,6 +131,16 @@ class EvidenciaService:
         """
         return db.get(Evidencia, evidencia_id)
 
+    def listar_evidencias(
+        self, db: Session, limit: int = 50, offset: int = 0,
+        auditoria_id: int | None = None,
+    ) -> list[Evidencia]:
+        """Consulta paginada, con orden estable y filtro opcional por auditoría."""
+        query = select(Evidencia)
+        if auditoria_id is not None:
+            query = query.where(Evidencia.auditoria_id == auditoria_id)
+        return list(db.scalars(query.order_by(Evidencia.id).limit(limit).offset(offset)).all())
+
     # ------------------------------------------------------------------
     # Evidencia tipo FILE — vía BinaryIO (tests / internos)
     # ------------------------------------------------------------------

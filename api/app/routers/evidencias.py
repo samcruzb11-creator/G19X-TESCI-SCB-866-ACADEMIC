@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.evidencia import EvidenciaCreate, EvidenciaRead
+from app.schemas.evidencia import EvidenciaCreate, EvidenciaListRead, EvidenciaRead
 from app.services.evidencia_service import evidencia_service
 from app.services.storage_service import storage_service
 
@@ -18,6 +18,16 @@ router = APIRouter(prefix="/evidencias", tags=["evidencias"])
 def _client_info(request: Request) -> dict[str, str | None]:
     return {"ip": request.client.host if request.client else None,
             "user_agent": request.headers.get("user-agent")}
+
+
+@router.get("", response_model=list[EvidenciaListRead])
+def listar_evidencias(
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    auditoria_id: Annotated[int | None, Query(gt=0)] = None,
+    db: Session = Depends(get_db),
+):
+    return evidencia_service.listar_evidencias(db, limit, offset, auditoria_id)
 
 
 @router.post("/archivo", response_model=EvidenciaRead, status_code=201)
