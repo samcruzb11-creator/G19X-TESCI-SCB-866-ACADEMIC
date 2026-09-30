@@ -21,7 +21,8 @@ def validate_jwt_config() -> None:
     secret = settings.jwt_secret_key
     minimum = {"HS256": 32, "HS384": 48, "HS512": 64}.get(settings.jwt_algorithm)
     if (minimum is None or len(secret.encode("utf-8")) < minimum
-            or len(set(secret)) < 16
+            # Reject obvious non-secrets, without estimating entropy from diversity.
+            or not secret.strip() or secret == secret[:1] * len(secret)
             or any(marker in secret.lower() for marker in ("replace-with", "changeme", "change-me", "default", "example"))):
         raise ValueError("Configuracion JWT insegura: use un secreto aleatorio y HS256/HS384/HS512.")
 

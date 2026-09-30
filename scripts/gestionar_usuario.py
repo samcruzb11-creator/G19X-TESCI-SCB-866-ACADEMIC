@@ -31,7 +31,11 @@ def main() -> int:
         if password != confirmation:
             print("Las contraseñas no coinciden. Sin cambios.")
             return 1
-        hashed = hash_password(password)
+        try:
+            hashed = hash_password(password)
+        except ValueError:
+            print("La contraseña debe tener entre 12 y 1024 caracteres. Sin cambios.")
+            return 1
         del password, confirmation
         if input(f"Escriba CAMBIAR {args.usuario_id} para confirmar: ") != f"CAMBIAR {args.usuario_id}":
             print("Cancelado. Sin cambios.")

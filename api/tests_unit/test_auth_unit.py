@@ -2,6 +2,7 @@
 from datetime import datetime, timezone, timedelta
 from unittest.mock import Mock
 import importlib.util
+import secrets
 from pathlib import Path
 
 import pytest
@@ -11,7 +12,7 @@ from sqlalchemy.engine import Engine
 
 from app.main import app
 from app.core.config import settings
-from app.core.security import hash_password, issue_token, verify_password
+from app.core.security import hash_password, issue_token, verify_password, validate_jwt_config
 from app.db.session import get_db
 from app.models.auth import AuthSession
 from app.models.entities import Usuario
@@ -239,6 +240,63 @@ def test_startup_rejects_insecure_secret(monkeypatch):
     with pytest.raises(ValueError, match="Configuracion JWT insegura"):
         with TestClient(app):
             pytest.fail("Startup must reject insecure JWT configuration")
+
+
+@pytest.mark.parametrize("algorithm,size", [("HS256", 32), ("HS384", 48), ("HS512", 64)])
+@pytest.mark.parametrize("encoding", ["hex", "urlsafe"])
+def test_csprng_secret_accepted(monkeypatch, algorithm, size, encoding):
+    monkeypatch.setattr(settings, "jwt_algorithm", algorithm)
+    generate = secrets.token_hex if encoding == "hex" else secrets.token_urlsafe
+    monkeypatch.setattr(settings, "jwt_secret_key", generate(size))
+    with TestClient(app):
+        validate_jwt_config()
+
+
+def test_many_random_hex_secrets_accepted(monkeypatch):
+    # No diversity requirement: every 32-byte CSPRNG sample must be accepted.
+    for _ in range(256):
+        monkeypatch.setattr(settings, "jwt_secret_key", secrets.token_hex(32))
+        validate_jwt_config()
+    # Fixed regression sample missing hexadecimal symbols; not a real credential.
+    monkeypatch.setattr(settings, "jwt_secret_key", "0123456789abcde0" * 4)
+    validate_jwt_config()
+
+
+@pytest.mark.parametrize("algorithm,secret", [
+    ("HS256", "short"), ("HS256", "0123456789abcdef" + "0123456789abcde"),
+    ("HS384", "0123456789abcdef" * 2), ("HS512", "0123456789abcdef" * 3),
+    ("HS256", "x" * 64), ("HS256", " " * 64),
+    *[("HS256", marker + "0123456789abcdef" * 4)
+      for marker in ["replace-with", "changeme", "change-me", "default", "example"]],
+])
+def test_startup_rejects_unsafe_secrets(monkeypatch, algorithm, secret):
+    monkeypatch.setattr(settings, "jwt_algorithm", algorithm)
+    monkeypatch.setattr(settings, "jwt_secret_key", secret)
+    with pytest.raises(ValueError, match="Configuracion JWT insegura"):
+        with TestClient(app):
+            pytest.fail("Startup must fail before serving requests")
+
+
+@pytest.mark.parametrize("password", ["short", "p" * 1025])
+def test_provisioning_password_length_validation(monkeypatch, capsys, password):
+    path = Path(__file__).resolve().parents[2] / "scripts" / "gestionar_usuario.py"
+    spec = importlib.util.spec_from_file_location("password_validation_tool", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setattr("sys.argv", [str(path), "--usuario-id", "1", "--correo", "test@example.invalid"])
+    monkeypatch.setattr(module, "getpass", lambda prompt: password)
+    confirmation = Mock(side_effect=AssertionError("Must not confirm invalid password"))
+    monkeypatch.setattr("builtins.input", confirmation)
+    factory = Mock(side_effect=AssertionError("Must not open DB for invalid password"))
+    monkeypatch.setattr("app.db.session.SessionLocal", factory)
+    assert module.main() == 1
+    factory.assert_not_called()
+    confirmation.assert_not_called()
+    output = capsys.readouterr()
+    assert "entre 12 y 1024 caracteres. Sin cambios." in output.out
+    assert "Verifique el estado" not in output.out
+    assert password not in output.out + output.err
+    assert "$argon2" not in output.out + output.err
 
 
 @pytest.mark.parametrize("claim,value", [
