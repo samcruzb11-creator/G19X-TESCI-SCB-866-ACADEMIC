@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -12,10 +13,20 @@ from app.routers.documentos import router as documentos_router
 from app.routers.evidencias import router as evidencias_router
 from app.routers.catalogos import router as catalogos_router
 from app.routers.auditorias import router as auditorias_router
+from app.routers.auth import router as auth_router
+from app.core.security import validate_jwt_config
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    # Imports, Alembic and credential tooling remain usable without a JWT secret;
+    # serving HTTP requires valid cryptographic configuration before startup.
+    validate_jwt_config()
+    yield
 
 # Filesystem/driver failures must use the sanitized handler even in local mode.
 # Starlette's HTTP debug mode otherwise bypasses it and returns tracebacks.
-app = FastAPI(title=settings.app_name, debug=False)
+app = FastAPI(title=settings.app_name, debug=False, lifespan=lifespan)
 logger = logging.getLogger(__name__)
 
 
@@ -39,10 +50,14 @@ app.include_router(documentos_router, prefix=settings.api_v1_prefix)
 app.include_router(evidencias_router, prefix=settings.api_v1_prefix)
 app.include_router(catalogos_router, prefix=settings.api_v1_prefix)
 app.include_router(auditorias_router, prefix=settings.api_v1_prefix)
+app.include_router(auth_router, prefix=settings.api_v1_prefix)
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    if request.url.path.startswith(settings.api_v1_prefix + "/auth/"):
+        # Pydantic errors can contain raw input, including passwords.
+        return JSONResponse(status_code=422, content={"detail": "Solicitud de autenticacion invalida"})
     return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
 
 
