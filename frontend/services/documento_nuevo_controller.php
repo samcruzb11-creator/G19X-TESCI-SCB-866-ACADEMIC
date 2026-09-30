@@ -30,7 +30,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $result = api_post_json('/api/v1/documentos', $validation['body'], $validation['query']);
         $newId = positive_id($result['data']['id'] ?? null);
         if ($result['ok'] && $result['status'] === 201 && $newId !== null) {
-            $_SESSION['document_success'][$newId] = 'El documento se creó correctamente. Puedes adjuntar su primera versión a continuación.';
+            $_SESSION['document_success'][$newId] = 'Documento registrado correctamente. Puedes adjuntar su primera versión a continuación.';
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
             session_write_close();
             header('Location: ' . page_url('documento', ['id' => $newId]), true, 303);

@@ -11,13 +11,20 @@ if (menuButton) {
         menuButton.setAttribute('aria-expanded', String(open));
     });
     document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') closeMenu();
+        if (event.key === 'Escape' && document.body.classList.contains('navigation-open')) {
+            closeMenu();
+            menuButton.focus();
+        }
     });
     document.addEventListener('click', (event) => {
         if (!event.target.closest('.sidebar, .menu-toggle')) closeMenu();
     });
     window.matchMedia('(min-width: 761px)').addEventListener('change', closeMenu);
 }
+
+// Server validation retains values and identifies the first field to correct.
+const invalidField = document.querySelector('[aria-invalid="true"]');
+if (invalidField) invalidField.focus();
 
 // Only the dependent version selector needs JavaScript; PHP still validates it.
 const evidenceForm = document.querySelector('[data-evidence-form]');

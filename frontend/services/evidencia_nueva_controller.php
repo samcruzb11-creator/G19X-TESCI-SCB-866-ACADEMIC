@@ -50,7 +50,7 @@ if ($post) {
             : api_post_json('/api/v1/evidencias/logica', $validation['body'], $validation['query']);
         $newId = positive_id($result['data']['id'] ?? null);
         if ($result['ok'] && $result['status'] === 201 && $newId !== null) {
-            $_SESSION['evidence_success'][$newId] = 'La evidencia se registró correctamente.';
+            $_SESSION['evidence_success'][$newId] = 'Evidencia registrada correctamente.';
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
             session_write_close();
             header('Location: ' . page_url('evidencia', ['id' => $newId]), true, 303);

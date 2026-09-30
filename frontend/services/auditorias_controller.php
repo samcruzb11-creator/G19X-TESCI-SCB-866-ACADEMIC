@@ -30,7 +30,7 @@ if ($page === 'auditoria_nueva') {
             $result = api_post_json('/api/v1/auditorias', $validation['body']);
             $newId = positive_id($result['data']['id'] ?? null);
             if ($result['ok'] && $result['status'] === 201 && $newId !== null) {
-                $_SESSION['audit_success'][$newId] = 'La auditoría se creó correctamente.';
+                $_SESSION['audit_success'][$newId] = 'Auditoría registrada correctamente.';
                 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
                 session_write_close();
                 header('Location: ' . page_url('auditoria', ['id' => $newId]), true, 303);
@@ -46,6 +46,16 @@ if ($page === 'auditoria_nueva') {
 }
 $auditResult = api_get_all('/api/v1/auditorias');
 $audits = $auditResult['data'];
+if ($page === 'auditorias') {
+    $auditCount = count($audits);
+    $filterValues = ['q' => list_query('q'), 'estado' => list_query('estado')];
+    $stateOptions = [];
+    foreach (['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as $state) $stateOptions[$state] = audit_status($state)[0];
+    $audits = array_values(array_filter($audits, fn(array $row): bool =>
+        list_matches($row, $filterValues['q'], ['codigo', 'nombre'])
+        && ($filterValues['estado'] === '' || ($row['estado'] ?? '') === $filterValues['estado'])
+    ));
+}
 if ($page === 'auditoria') {
     $audit = null;
     foreach ($audits as $row) if (positive_id($row['id'] ?? null) === $recordId) $audit = $row;

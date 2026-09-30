@@ -11,6 +11,7 @@ require_once __DIR__ . '/services/api_client.php';
 require_once __DIR__ . '/services/download_response.php';
 require_once __DIR__ . '/services/registro_helpers.php';
 require_once __DIR__ . '/includes/form_fields.php';
+require_once __DIR__ . '/includes/list_filters.php';
 
 $routes = [
     'dashboard' => ['title' => 'Dashboard', 'file' => 'dashboard.php', 'nav' => 'dashboard'],

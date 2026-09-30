@@ -1,5 +1,5 @@
 <?php if (!isset($values, $availableAreas, $availableUsers)) { http_response_code(404); exit; } ?>
-<div class="page-heading"><div><p class="eyebrow">REGISTRO DOCUMENTAL</p><h1>Nuevo documento</h1><p class="page-description">Registrar un nuevo documento en el sistema de trazabilidad.</p></div></div>
+<div class="page-heading"><div><p class="eyebrow">REGISTRO DOCUMENTAL</p><h1>Nuevo documento</h1><p class="page-description">Registrar un nuevo documento en el sistema de trazabilidad.</p></div><a class="button button-secondary" href="<?= e(page_url('documentos')) ?>">Volver a documentos</a></div>
 <section class="panel new-document-panel" aria-labelledby="new-document-title">
     <div class="panel-heading"><div><h2 id="new-document-title">Datos del documento</h2><p>Los campos marcados con * son obligatorios.</p></div></div>
     <div class="upload-body">

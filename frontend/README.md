@@ -15,8 +15,10 @@ El servidor integrado de PHP se utiliza solamente para desarrollo local.
 
 Rutas implementadas: `index.php?pagina=dashboard`,
 `index.php?pagina=documentos`, `index.php?pagina=documento_nuevo`
-e `index.php?pagina=documento&id=1`. Auditorías y evidencias
-muestran una vista provisional explícita. Las rutas desconocidas devuelven 404.
+e `index.php?pagina=documento&id=1`; también `auditorias`, `auditoria_nueva`,
+`auditoria&id=1`, `evidencias`, `evidencia_archivo`, `evidencia_logica`
+y `evidencia&id=1` mediante el parámetro `pagina`. Las rutas desconocidas
+y los identificadores inválidos devuelven 404.
 
 El dashboard consulta hasta 100 documentos y hasta 50 auditorías (límite
 predeterminado de la API); los indicadores muestran ese alcance, sin afirmar
@@ -71,3 +73,27 @@ Validación controlada realizada: documento ID 3, código
 `DEV-PROTOTIPO-PHP-20260928-001`, estado DRAFT, sin versiones. Creado únicamente
 mediante el frontend y FastAPI; conserva su evento de creación. Los documentos
 anteriores no se modificaron.
+
+## Fase 5: navegación y filtros
+
+Documentos permite buscar por código/título y filtrar por estado y área.
+Auditorías permite buscar por código/nombre y filtrar por estado. Son formularios
+GET que funcionan sin JavaScript; PHP filtra los registros obtenidos mediante el
+cliente central de FastAPI. La búsqueda no distingue mayúsculas y conserva acentos.
+Los listados consultan páginas de 200 registros, con el límite de protección
+existente de 10 000: si se alcanza, se informa de indisponibilidad en lugar de
+mostrar un resultado parcial como completo. Este enfoque está destinado al MVP
+con pocos registros; un volumen mayor requerirá filtros en la API.
+
+Evidencias conserva el filtro por auditoría y páginas de 50 registros. No se
+añadió filtro por tipo porque la API no lo admite: filtrar una sola página
+ocultaría resultados de otras páginas. La interfaz distingue entre un módulo
+vacío y una búsqueda sin coincidencias.
+
+Las rutas de alta tienen enlaces de regreso y Cancelar. La cabecera enlaza al
+módulo padre. Nueva versión usa los controles reutilizables, errores junto al
+campo, CSRF (403), validación (422) y PRG (303). Los mensajes de éxito se consumen
+una sola vez. JavaScript enfoca el primer campo inválido y devuelve el foco al
+botón Menú al cerrarlo con Escape.
+
+Validación de esta fase: [VALIDACION_FASE5.md](VALIDACION_FASE5.md).

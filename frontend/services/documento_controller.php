@@ -8,6 +8,7 @@ $successMessage = $_SESSION['document_success'][$documentId] ?? $_SESSION['versi
 unset($_SESSION['document_success'][$documentId], $_SESSION['version_success'][$documentId]);
 $uploadError = $sessionReady ? null : 'No fue posible habilitar el envío de archivos. Recarga la página e intenta nuevamente.';
 $downloadError = null;
+$uploadFieldErrors = [];
 $selectedUser = positive_id($_POST['subido_por_id'] ?? null);
 $comment = is_string($_POST['comentario_cambio'] ?? null) ? trim($_POST['comentario_cambio']) : '';
 $documentResult = api_get_object('/api/v1/documentos/' . $documentId);
@@ -48,18 +49,30 @@ $userNames = areas_by_id($userResult['data']);
 $uploadUsers = array_values(array_filter($userResult['data'], fn(array $user): bool => positive_id($user['id'] ?? null) !== null && ($user['activo'] ?? false) === true));
 
 if ($method === 'POST') {
+    $uploadStatus = 422;
     $token = $_POST['csrf_token'] ?? null;
     $file = $_FILES['archivo'] ?? null;
     if (!$sessionReady) {
+        $uploadStatus = 503;
         $uploadError = 'No fue posible habilitar el envío de archivos. Recarga la página e intenta nuevamente.';
     } elseif (!csrf_valid($token)) {
+        $uploadStatus = 403;
         $uploadError = 'No fue posible validar el envío. Recarga la ficha y selecciona nuevamente el archivo. Si supera el límite de carga, elige un archivo más pequeño.';
-    } elseif (!$userResult['ok'] || !in_array($selectedUser, array_column($uploadUsers, 'id'), true)) {
+    } elseif (!$userResult['ok']) {
+        $uploadStatus = 503;
+        $uploadError = 'No fue posible consultar los usuarios. Intenta nuevamente.';
+    } elseif (!in_array($selectedUser, array_column($uploadUsers, 'id'), true)) {
         $uploadError = 'Selecciona un usuario disponible para registrar la versión.';
+        $uploadFieldErrors['subido_por_id'] = $uploadError;
     } elseif (!is_array($file) || !is_int($file['error'] ?? null) || $file['error'] !== UPLOAD_ERR_OK) {
         $uploadError = 'No fue posible recibir el archivo. Selecciónalo nuevamente y comprueba el límite de tamaño indicado.';
+        $uploadFieldErrors['archivo'] = $uploadError;
     } elseif (!is_string($file['tmp_name'] ?? null) || !is_uploaded_file($file['tmp_name']) || !is_file($file['tmp_name']) || !is_string($file['name'] ?? null)) {
         $uploadError = 'Selecciona un archivo válido antes de enviar.';
+        $uploadFieldErrors['archivo'] = $uploadError;
+    } elseif (!is_string($_POST['comentario_cambio'] ?? '') || !mb_check_encoding($comment, 'UTF-8')) {
+        $uploadFieldErrors['comentario_cambio'] = 'Introduce un texto válido.';
+        $uploadError = 'Revisa los campos marcados.';
     } else {
         $fields = ['subido_por_id' => (string) $selectedUser];
         if ($comment !== '') $fields['comentario_cambio'] = $comment;
@@ -67,14 +80,20 @@ if ($method === 'POST') {
             'archivo' => ['path' => $file['tmp_name'], 'name' => $file['name']],
         ]);
         if ($result['ok'] && $result['status'] === 201) {
-            $_SESSION['version_success'][$documentId] = 'La nueva versión se cargó correctamente.';
+            $_SESSION['version_success'][$documentId] = 'Versión registrada correctamente.';
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
             session_write_close();
             header('Location: ' . page_url('documento', ['id' => $documentId]), true, 303);
             exit;
         }
         $uploadError = 'No fue posible confirmar la carga de la versión. Consulta el historial antes de volver a enviarla.';
+        $uploadStatus = in_array($result['status'], [400, 404, 409, 422], true) ? $result['status'] : 502;
+        if ($result['status'] === 422) {
+            foreach ($result['error_fields'] ?? [] as $field) $uploadFieldErrors[$field] = 'Revisa este valor; la API no lo aceptó.';
+            $uploadError = 'Revisa los campos marcados y selecciona nuevamente el archivo.';
+        }
     }
-    http_response_code(422);
+    if ($uploadFieldErrors !== []) $uploadError = 'Revisa los campos marcados y selecciona nuevamente el archivo.';
+    http_response_code($uploadStatus);
 }
 session_write_close();

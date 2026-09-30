@@ -30,12 +30,13 @@ $documents = array_slice($documents, 0, 5);
         <div class="metric"><h2><?= e($metric['label']) ?></h2><p class="metric-value"><?= $metric['value'] === null ? '—' : e($metric['value']) ?></p><p class="metric-note"><?= e($metric['value'] === null ? 'Información no disponible' : $metric['note']) ?></p></div>
     <?php endforeach; ?>
 </section>
+<nav class="module-links" aria-label="Accesos a los módulos"><a class="text-link" href="<?= e(page_url('documentos')) ?>">Ver documentos</a><a class="text-link" href="<?= e(page_url('auditorias')) ?>">Ver auditorías</a><a class="text-link" href="<?= e(page_url('evidencias')) ?>">Ver evidencias</a></nav>
 <section class="panel" aria-labelledby="recent-title">
     <div class="panel-heading"><div><h2 id="recent-title">Documentos recientes</h2><p>Últimas actualizaciones entre los documentos consultados.</p></div><a class="text-link" href="<?= e(page_url('documentos')) ?>">Ver listado completo</a></div>
     <?php if (!$documentResult['ok']): ?>
         <div class="empty-state"><h3>Información no disponible</h3><p><?= e($documentResult['message']) ?></p><a class="button button-secondary" href="<?= e(page_url('dashboard')) ?>">Volver a intentar</a></div>
     <?php elseif ($documents === []): ?>
-        <div class="empty-state"><h3>Aún no hay documentos registrados</h3><p>Los documentos aparecerán aquí cuando se incorporen al sistema.</p></div>
+        <div class="empty-state"><h3>No hay documentos registrados.</h3><p>Los documentos aparecerán aquí cuando se incorporen al sistema.</p></div>
     <?php else: ?>
         <?php require __DIR__ . '/../includes/document_table.php'; ?>
         <div class="panel-footer"><?= e(count($documents)) ?> documentos recientes · <?= e(count($allDocuments)) ?> consultados</div>

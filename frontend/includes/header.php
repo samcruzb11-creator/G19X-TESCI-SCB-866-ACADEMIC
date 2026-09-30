@@ -16,7 +16,8 @@
     <header class="topbar">
         <div class="topbar-location">
             <button class="menu-toggle" type="button" aria-controls="sidebar" aria-expanded="false">Menú</button>
-            <span class="breadcrumb-parent">Espacio de trabajo</span><span class="breadcrumb-divider" aria-hidden="true">/</span>
+            <?php $parentPage = in_array($route['nav'], ['documentos', 'auditorias', 'evidencias'], true) && $page !== $route['nav'] ? $route['nav'] : 'dashboard'; ?>
+            <a class="breadcrumb-parent" href="<?= e(page_url($parentPage)) ?>"><?= e(['documentos' => 'Documentos', 'auditorias' => 'Auditorías', 'evidencias' => 'Evidencias', 'dashboard' => 'Inicio'][$parentPage]) ?></a><span class="breadcrumb-divider" aria-hidden="true">/</span>
             <span class="header-title"><?= e($route['title']) ?></span>
         </div>
         <span class="current-user">Usuario del sistema</span>

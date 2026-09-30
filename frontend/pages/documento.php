@@ -16,7 +16,7 @@ $currentVersionId = positive_id($document['version_vigente_id'] ?? null);
 <div class="document-actions"><a class="button button-primary" href="#nueva-version">Subir nueva versión</a><?php if ($currentVersionId !== null): ?><a class="button button-secondary" href="<?= e(download_url($documentId, $currentVersionId)) ?>">Descargar versión vigente</a><?php endif; ?></div>
 
 <section class="panel document-section" aria-labelledby="general-title">
-    <div class="panel-heading"><h2 id="general-title">Información general</h2><span class="record-count"><?= e(version_label($document)) ?> vigente</span></div>
+    <div class="panel-heading"><h2 id="general-title">Información general</h2><span class="record-count"><?= e($currentVersionId === null ? 'Sin versión vigente' : version_label($document) . ' vigente') ?></span></div>
     <?php if (!$areaResult['ok'] || !$userResult['ok']): ?><p class="section-note">No fue posible consultar todos los nombres. Se muestran los identificadores disponibles.</p><?php endif; ?>
     <dl class="document-info">
         <div class="info-wide"><dt>Descripción</dt><dd class="preserve-lines"><?= e($document['descripcion'] ?? 'Sin descripción registrada.') ?></dd></div>
@@ -32,7 +32,7 @@ $currentVersionId = positive_id($document['version_vigente_id'] ?? null);
 <section class="panel document-section" aria-labelledby="versions-title">
     <div class="panel-heading"><div><h2 id="versions-title">Historial de versiones</h2><p>Archivos registrados y su huella de integridad.</p></div><?php if ($versionResult['ok']): ?><span class="record-count"><?= e(count($versions)) ?> <?= count($versions) === 1 ? 'versión' : 'versiones' ?></span><?php endif; ?></div>
     <?php if (!$versionResult['ok']): ?><div class="empty-state" role="status"><p>No fue posible consultar las versiones.</p></div>
-    <?php elseif ($versions === []): ?><div class="empty-state"><p>Este documento aún no tiene versiones registradas.</p></div>
+    <?php elseif ($versions === []): ?><div class="empty-state"><p>Este documento aún no tiene versiones.</p></div>
     <?php else: ?>
     <div class="table-scroll" role="region" aria-label="Historial de versiones" tabindex="0"><table class="data-table versions-table"><thead><tr><th scope="col">Versión</th><th scope="col">Archivo</th><th scope="col">SHA-256</th><th scope="col">Tamaño</th><th scope="col">Fecha</th><th scope="col">Usuario</th><th scope="col" class="action-cell">Acción</th></tr></thead><tbody>
     <?php foreach ($versions as $version): $versionId = positive_id($version['id'] ?? null); $hash = is_string($version['sha256'] ?? null) ? $version['sha256'] : ''; ?>
@@ -49,7 +49,7 @@ $currentVersionId = positive_id($document['version_vigente_id'] ?? null);
 <section class="panel document-section" aria-labelledby="history-title">
     <div class="panel-heading"><div><h2 id="history-title">Historial de trazabilidad</h2><p>Eventos del documento en orden cronológico.</p></div></div>
     <?php if (!$historyResult['ok']): ?><div class="empty-state" role="status"><p>No fue posible consultar el historial.</p></div>
-    <?php elseif ($historyResult['data'] === []): ?><div class="empty-state"><p>No hay eventos registrados para este documento.</p></div>
+    <?php elseif ($historyResult['data'] === []): ?><div class="empty-state"><p>No hay eventos registrados.</p></div>
     <?php else: ?>
     <div class="table-scroll" role="region" aria-label="Historial de trazabilidad" tabindex="0"><table class="data-table history-table"><thead><tr><th scope="col">Fecha / hora</th><th scope="col">Acción</th><th scope="col">Usuario / actor</th><th scope="col">Detalle</th></tr></thead><tbody>
     <?php foreach ($historyResult['data'] as $event): ?>
@@ -59,18 +59,21 @@ $currentVersionId = positive_id($document['version_vigente_id'] ?? null);
 </section>
 
 <section class="panel document-section" id="nueva-version" aria-labelledby="upload-title">
-    <div class="panel-heading"><div><h2 id="upload-title">Subir nueva versión</h2><p>Selecciona el archivo y el usuario que registra esta versión.</p></div></div>
+    <div class="panel-heading"><div><h2 id="upload-title">Subir nueva versión</h2><p>Selecciona el archivo y el usuario que registra esta versión. Los campos con * son obligatorios.</p></div></div>
     <div class="upload-body">
         <?php if ($uploadError !== null): ?><div class="notice notice-error" role="alert"><?= e($uploadError) ?></div><?php endif; ?>
         <?php if (!$userResult['ok'] || $uploadUsers === []): ?><div class="notice" role="status">No hay usuarios disponibles para registrar una versión. Intenta nuevamente cuando el catálogo esté disponible.</div><?php endif; ?>
         <form action="<?= e(page_url('documento', ['id' => $documentId])) ?>#nueva-version" method="post" enctype="multipart/form-data" class="upload-form">
             <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
             <div class="form-grid">
-                <div class="form-field"><label for="archivo">Archivo <span>(obligatorio)</span></label><input type="file" id="archivo" name="archivo" required aria-describedby="file-help"><p class="field-help" id="file-help">Límite por archivo: <?= e(ini_get('upload_max_filesize')) ?>. Límite del envío completo: <?= e(ini_get('post_max_size')) ?>.</p></div>
-                <div class="form-field"><label for="subido_por_id">Usuario que registra <span>(obligatorio)</span></label><select id="subido_por_id" name="subido_por_id" required><option value="">Selecciona un usuario</option><?php foreach ($uploadUsers as $user): ?><option value="<?= e($user['id']) ?>"<?= positive_id($user['id']) === $selectedUser ? ' selected' : '' ?>><?= e($user['nombre'] ?? 'Usuario #' . $user['id']) ?></option><?php endforeach; ?></select></div>
-                <div class="form-field info-wide"><label for="comentario_cambio">Motivo o comentario <span>(opcional)</span></label><textarea id="comentario_cambio" name="comentario_cambio" rows="3"><?= e($comment) ?></textarea></div>
+                <?php
+                $uploadValues = ['subido_por_id' => $selectedUser, 'comentario_cambio' => $comment];
+                form_control('archivo', 'Archivo', $uploadValues, $uploadFieldErrors, 'file', true);
+                form_select('subido_por_id', 'Usuario que registra', areas_by_id($uploadUsers), $uploadValues, $uploadFieldErrors);
+                form_control('comentario_cambio', 'Motivo o comentario', $uploadValues, $uploadFieldErrors, 'textarea');
+                ?>
             </div>
-            <div class="form-actions"><button type="submit" class="button button-primary"<?= !$sessionReady || !$userResult['ok'] || $uploadUsers === [] ? ' disabled' : '' ?>>Cargar versión</button><span class="field-help">La carga quedará registrada en el historial de trazabilidad.</span></div>
+            <p class="field-help">Límite por archivo: <?= e(ini_get('upload_max_filesize')) ?>. Límite del envío completo: <?= e(ini_get('post_max_size')) ?>.</p><div class="form-actions"><button type="submit" class="button button-primary"<?= !$sessionReady || !$userResult['ok'] || $uploadUsers === [] ? ' disabled' : '' ?>>Cargar versión</button><a class="button button-secondary" href="<?= e(page_url('documento', ['id' => $documentId])) ?>">Cancelar</a><span class="field-help">La carga quedará registrada en el historial de trazabilidad.</span></div>
         </form>
     </div>
 </section>

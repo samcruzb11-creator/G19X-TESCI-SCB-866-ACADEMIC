@@ -47,7 +47,7 @@ function api_error_response(int $status, string $body): array
             $location = is_array($item) ? ($item['loc'] ?? []) : [];
             if (!is_array($location)) continue;
             $field = $location[1] ?? null;
-            if (in_array($field, ['codigo', 'titulo', 'descripcion', 'tipo', 'estado', 'area_id', 'responsable_id', 'creador_id', 'nombre', 'alcance', 'created_by_id', 'fecha_inicio_prevista', 'fecha_fin_prevista', 'auditoria_id', 'registrada_por_id', 'documento_id', 'version_documento_id', 'referencia_url', 'archivo'], true)) {
+            if (in_array($field, ['codigo', 'titulo', 'descripcion', 'tipo', 'estado', 'area_id', 'responsable_id', 'creador_id', 'nombre', 'alcance', 'created_by_id', 'fecha_inicio_prevista', 'fecha_fin_prevista', 'auditoria_id', 'registrada_por_id', 'documento_id', 'version_documento_id', 'referencia_url', 'archivo', 'subido_por_id', 'comentario_cambio'], true)) {
                 $result['error_fields'][] = $field;
             }
         }
