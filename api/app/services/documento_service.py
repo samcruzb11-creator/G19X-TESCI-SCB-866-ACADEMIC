@@ -9,8 +9,8 @@ Responsabilidades:
 - Registro inmutable de todos los eventos en ``eventos_auditoria``.
 
 Gestión de errores:
-- Ante cualquier fallo de BD tras la escritura física, se ejecuta ``delete_file()``
-  sobre el archivo recién guardado (cleanup on failure) y se hace ``rollback()``.
+- Se compensa únicamente antes del commit o ante rechazo confirmado.
+- Un commit incierto conserva el archivo para reconciliación; no hay reintentos.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.entities import Documento, EventoAuditoria, Usuario, VersionDocumento
 from app.schemas.documento import DocumentoCreate, DocumentoUpdate
 from app.services.storage_service import StorageService, storage_service
+from app.services.file_transaction import commit_stored_file, discard_uncommitted_file, rollback_safely
 
 try:
     from fastapi import UploadFile
@@ -280,7 +281,8 @@ class DocumentoService:
         4. Persistencia en BD + actualización de ``version_vigente_id``.
         5. Registro inmutable en ``eventos_auditoria``.
 
-        Si paso 4 o 5 falla → ``rollback()`` + ``delete_file()`` (cleanup on failure).
+        Los fallos previos al commit compensan solo el archivo nuevo. Un commit
+        incierto conserva el archivo. Un fallo posterior nunca lo elimina.
 
         Args:
             db:               Sesión SQLAlchemy activa.
@@ -324,14 +326,18 @@ class DocumentoService:
         nuevo_numero = max_version + 1
 
         # Escritura física en streaming + SHA-256
-        stored_file = self.storage.save_file(
-            file_stream=file_stream,
-            filename=filename,
-            content_type=content_type,
-            category="documents",
-        )
+        try:
+            stored_file = self.storage.save_file(
+                file_stream=file_stream,
+                filename=filename,
+                content_type=content_type,
+                category="documents",
+            )
+        except Exception:
+            rollback_safely(db)  # Release the document lock after a streaming failure.
+            raise
 
-        # Persistencia atómica — si falla, limpiamos el archivo
+        # Preparation only: no COMMIT or post-commit reads inside this block.
         try:
             version = VersionDocumento(
                 documento_id=documento_id,
@@ -375,15 +381,17 @@ class DocumentoService:
                     "client_info": client_info or {},
                 },
             )
-            db.commit()
-            db.refresh(version)
-            db.refresh(documento)
-            return version
-
+            db.flush()  # Include the event before crossing the COMMIT boundary.
         except Exception:
-            db.rollback()
-            self.storage.delete_file(stored_file.storage_key)  # cleanup on failure
+            discard_uncommitted_file(db, self.storage, stored_file.storage_key)
             raise
+
+        commit_stored_file(db, self.storage, stored_file.storage_key)
+        # Session expires attributes on commit. Preserve the existing ORM return
+        # contract and database-generated values; failures here never compensate.
+        db.refresh(version)
+        db.refresh(documento)
+        return version
 
     # ------------------------------------------------------------------
     # Nueva versión (UploadFile — para routers FastAPI)

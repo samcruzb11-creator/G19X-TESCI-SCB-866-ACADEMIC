@@ -27,6 +27,7 @@ from app.models.entities import (
 )
 from app.schemas.evidencia import EvidenciaCreate, TipoEvidenciaEnum
 from app.services.storage_service import StorageService, storage_service
+from app.services.file_transaction import commit_stored_file, discard_uncommitted_file, rollback_safely
 
 try:
     from fastapi import UploadFile
@@ -167,7 +168,8 @@ class EvidenciaService:
         2. Guardar binario en disco con SHA-256 en streaming.
         3. Persistir registro ``Evidencia`` en BD.
         4. Escribir ``EventoAuditoria`` inmutable.
-        5. Si BD falla → ``rollback()`` + ``delete_file()`` (cleanup on failure).
+        5. Antes del commit se compensa el archivo nuevo; ante commit incierto
+           se conserva. Los fallos posteriores al commit nunca lo eliminan.
 
         Args:
             db:                   Sesión SQLAlchemy activa.
@@ -191,12 +193,16 @@ class EvidenciaService:
         documento_id = _validar_documento_y_version(db, documento_id, version_documento_id)
 
         # Escritura física + SHA-256 en streaming
-        stored_file = self.storage.save_file(
-            file_stream=file_stream,
-            filename=filename,
-            content_type=content_type,
-            category="evidence",
-        )
+        try:
+            stored_file = self.storage.save_file(
+                file_stream=file_stream,
+                filename=filename,
+                content_type=content_type,
+                category="evidence",
+            )
+        except Exception:
+            rollback_safely(db)
+            raise
 
         try:
             evidencia = Evidencia(
@@ -239,14 +245,15 @@ class EvidenciaService:
                     "client_info": client_info or {},
                 },
             )
-            db.commit()
-            db.refresh(evidencia)
-            return evidencia
-
+            db.flush()  # Persist the event before attempting COMMIT.
         except Exception:
-            db.rollback()
-            self.storage.delete_file(stored_file.storage_key)  # cleanup on failure
+            discard_uncommitted_file(db, self.storage, stored_file.storage_key)
             raise
+
+        commit_stored_file(db, self.storage, stored_file.storage_key)
+        # Required by the existing expire-on-commit ORM contract; no cleanup here.
+        db.refresh(evidencia)
+        return evidencia
 
     # ------------------------------------------------------------------
     # Evidencia tipo FILE — vía UploadFile (routers FastAPI)

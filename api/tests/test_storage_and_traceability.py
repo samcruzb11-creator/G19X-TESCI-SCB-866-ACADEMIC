@@ -8,52 +8,18 @@ from tempfile import mkdtemp
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import text
 from app.models.entities import Area, Auditoria, Documento, EventoAuditoria, Evidencia, Usuario, VersionDocumento
 from app.schemas.documento import DocumentoCreate
 from app.services.documento_service import DocumentoService
 from app.services.evidencia_service import EvidenciaService
 from app.services.storage_service import StorageService
+from sqlalchemy.exc import OperationalError
 
 
 @pytest.fixture(autouse=True)
-def clean_database(db_session_factory):
-    """Limpia las tablas de negocio antes y después de cada prueba de integración."""
-    session = db_session_factory()
-    try:
-        session.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
-        tables = [
-            "decisiones_aprobacion",
-            "rondas_aprobacion",
-            "hallazgos_evidencias",
-            "evidencias",
-            "hallazgos",
-            "documentos_auditoria",
-            "versiones_documento",
-            "documentos",
-            "auditorias",
-            "areas",
-            "eventos_auditoria",
-            "usuarios",
-        ]
-        for t in tables:
-            session.execute(text(f"TRUNCATE TABLE {t};"))
-        session.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
-        session.commit()
-    finally:
-        session.close()
-
+def clean_database(clean_test_database):
+    """Use the shared cleanup restricted to the guarded integration database."""
     yield
-
-    session = db_session_factory()
-    try:
-        session.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
-        for t in tables:
-            session.execute(text(f"TRUNCATE TABLE {t};"))
-        session.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
-        session.commit()
-    finally:
-        session.close()
 
 
 def test_storage_service_streaming_and_integrity():
@@ -277,11 +243,13 @@ def test_atomic_cleanup_on_database_error(db_session_factory):
         stream = io.BytesIO(b"Datos que fallaran al insertar")
 
         def broken_commit():
-            raise RuntimeError("Simulated Database Crash during Commit")
+            # An arbitrary transport error has an UNKNOWN outcome and must retain
+            # the file. MySQL 1213 explicitly reports a rolled-back transaction.
+            raise OperationalError(None, None, Exception(1213, "Simulated deadlock"))
 
         session.commit = broken_commit
 
-        with pytest.raises(RuntimeError, match="Simulated Database Crash"):
+        with pytest.raises(OperationalError):
             doc_service.crear_version_documento(
                 db=session,
                 documento_id=doc.id,
@@ -296,4 +264,6 @@ def test_atomic_cleanup_on_database_error(db_session_factory):
         assert len(archivos_reales) == 0, f"Quedaron archivos huérfanos: {archivos_reales}"
 
     finally:
+        session.rollback()
+        session.close()
         shutil.rmtree(temp_dir, ignore_errors=True)

@@ -12,10 +12,12 @@ from app.db.session import get_db
 from app.models.entities import Documento, EventoAuditoria, VersionDocumento
 from app.schemas.documento import (
     DocumentoDetalleRead,
+    DocumentoListRead,
     DocumentoCreate,
     DocumentoRead,
     DocumentoUpdate,
     VersionDocumentoRead,
+    VersionDocumentoListRead,
 )
 from app.services.documento_service import documento_service
 from app.services.storage_service import storage_service
@@ -42,7 +44,7 @@ def crear_documento(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.get("", response_model=list[DocumentoRead])
+@router.get("", response_model=list[DocumentoListRead])
 def listar_documentos(
     tipo: str | None = None,
     estado: str | None = None,
@@ -118,7 +120,7 @@ def crear_version(
         raise HTTPException(status_code=code, detail=str(exc)) from exc
 
 
-@router.get("/{documento_id}/versiones", response_model=list[VersionDocumentoRead])
+@router.get("/{documento_id}/versiones", response_model=list[VersionDocumentoListRead])
 def listar_versiones(documento_id: int, db: Session = Depends(get_db)):
     if db.get(Documento, documento_id) is None:
         raise HTTPException(status_code=404, detail="Documento no encontrado")

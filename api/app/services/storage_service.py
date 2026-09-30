@@ -13,12 +13,15 @@ from __future__ import annotations
 import hashlib
 import mimetypes
 import os
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import BinaryIO, NamedTuple
 from uuid import uuid4
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # UploadFile se importa de forma lazy para no crear dependencia dura en tests
 # que usen el servicio sin FastAPI instalado.
@@ -48,15 +51,15 @@ class StorageService:
     - Particionado por ``{category}/{YYYY}/{MM}/{uuid4_hex}{ext}`` para escalar I/O.
     - Escritura atómica: primero escribe a ``.tmp_{uuid}`` y luego hace ``rename()``.
     - SHA-256 calculado en streaming durante la escritura (una sola pasada por el archivo).
-    - ``delete_file()`` se llama desde los servicios de negocio ante cualquier excepción
-      para garantizar que nunca queden archivos huérfanos.
+    - Solo se compensan archivos nuevos de transacciones no confirmadas.
+      Una interrupción de proceso puede dejar huérfanos: el verificador los informa.
     """
 
     def __init__(self, base_path: str | Path | None = None, chunk_size: int = 65_536) -> None:
         raw_path = base_path or settings.storage_path
         self.base_path = Path(raw_path).resolve()
         self.chunk_size = chunk_size
-        self._ensure_base_directory()
+        # Construction and read-only verification must not create directories.
 
     # ------------------------------------------------------------------
     # Infraestructura interna
@@ -88,7 +91,7 @@ class StorageService:
         file_uuid = uuid4().hex
         unique_filename = f"{file_uuid}{extension}"
         storage_key = f"{category}/{partition}/{unique_filename}"
-        target_path = (self.base_path / category / partition / unique_filename).resolve()
+        target_path = self.get_absolute_path(storage_key)
         target_path.parent.mkdir(parents=True, exist_ok=True)
         return storage_key, target_path
 
@@ -118,6 +121,7 @@ class StorageService:
             OSError: Si el sistema de archivos no puede crear el archivo.
         """
         clean_name = self._sanitize_filename(filename)
+        mime_type = self._guess_mime_type(clean_name, content_type)
         extension = Path(clean_name).suffix.lower()
         storage_key, target_path = self._build_target_path(category, extension)
 
@@ -135,6 +139,15 @@ class StorageService:
                     f_out.write(chunk)
                     total_bytes += len(chunk)
 
+                f_out.flush()
+                os.fsync(f_out.fileno())
+
+            info = StoredFileInfo(
+                storage_key=storage_key, sha256=hasher.hexdigest(),
+                tamano_bytes=total_bytes, mime_type=mime_type,
+                nombre_original=clean_name, absolute_path=str(target_path),
+            )
+
             # Rename atómico: nunca deja un archivo a medias en la ruta final
             temp_target.replace(target_path)
 
@@ -143,17 +156,10 @@ class StorageService:
                 try:
                     temp_target.unlink()
                 except OSError:
-                    pass
+                    logger.error("storage: temporary cleanup failed; verification required")
             raise
 
-        return StoredFileInfo(
-            storage_key=storage_key,
-            sha256=hasher.hexdigest(),
-            tamano_bytes=total_bytes,
-            mime_type=self._guess_mime_type(clean_name, content_type),
-            nombre_original=clean_name,
-            absolute_path=str(target_path),
-        )
+        return info
 
     def save_upload_file(
         self,
@@ -205,12 +211,12 @@ class StorageService:
         Raises:
             ValueError: Si ``storage_key`` intenta escapar del ``base_path``.
         """
-        key = Path(storage_key)
+        key = Path(storage_key.replace("\\", "/"))
         if key.is_absolute() or key.drive or ".." in key.parts or ":" in storage_key:
             raise ValueError("Ruta de almacenamiento no permitida")
         target = (self.base_path / key).resolve()
         if not target.is_relative_to(self.base_path):
-            raise ValueError(f"Acceso de ruta no permitido para storage_key: '{storage_key}'")
+            raise ValueError("Ruta de almacenamiento no permitida")
         return target
 
     def verify_file_integrity(self, storage_key: str, expected_sha256: str) -> bool:

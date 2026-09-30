@@ -144,6 +144,16 @@ class DocumentoDetalleRead(DocumentoRead):
     versiones: list[VersionDocumentoRead] | None = None
 
 
+class VersionDocumentoListRead(VersionDocumentoRead):
+    """List responses do not disclose internal storage identifiers."""
+
+    storage_key: str = Field(exclude=True)
+
+
+class DocumentoListRead(DocumentoRead):
+    version_vigente: VersionDocumentoListRead | None = None
+
+
 # ===========================================================================
 # DocumentoAuditoria (pivot)
 # ===========================================================================
