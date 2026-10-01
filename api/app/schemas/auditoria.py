@@ -13,7 +13,7 @@ class AuditoriaCreate(BaseModel):
     fecha_inicio_prevista: date | None = None
     fecha_fin_prevista: date | None = None
     responsable_id: int = Field(gt=0)
-    created_by_id: int = Field(gt=0)
+    created_by_id: int | None = Field(default=None, deprecated=True)
 
     @model_validator(mode="after")
     def validar_fechas(self):

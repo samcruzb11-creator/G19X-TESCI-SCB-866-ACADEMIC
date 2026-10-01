@@ -11,6 +11,8 @@ from sqlalchemy.engine import Engine
 
 from app.main import app
 from app.db.session import get_db
+from app.api.dependencies import current_user
+from app.models.entities import Usuario
 from app.models.entities import Documento, Evidencia, VersionDocumento
 from app.routers import documentos, evidencias
 from app.services.storage_service import StorageService
@@ -28,6 +30,7 @@ def client(tmp_path, monkeypatch):
     evidence = Evidencia(id=1, auditoria_id=1, tipo='FILE', titulo='Test evidence', storage_key=stored.storage_key, nombre_original='test.txt', mime_type='text/plain', tamano_bytes=7, sha256=stored.sha256, registrada_por_id=1, created_at=stamp, updated_at=stamp)
     db = Mock()
     app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[current_user] = lambda: Usuario(id=1, rol="ADMIN")
     monkeypatch.setattr(documentos, 'storage_service', storage)
     monkeypatch.setattr(evidencias, 'storage_service', storage)
     try:
@@ -43,6 +46,7 @@ def test_download_version_and_evidence(client):
     r = c.get('/api/v1/documentos/1/versiones/1/descargar')
     assert r.status_code == 200 and r.content == b'fixture'
     assert 'attachment' in r.headers['content-disposition']
+    db.scalar.return_value = evidence
     db.get.return_value = evidence
     r = c.get('/api/v1/evidencias/1/descargar')
     assert r.status_code == 200 and r.content == b'fixture'
@@ -54,6 +58,7 @@ def test_logical_evidence_never_accesses_storage(client, monkeypatch, tipo):
     c, db, _, _, evidence = client
     evidence.tipo = tipo
     evidence.storage_key = None
+    db.scalar.return_value = evidence
     db.get.return_value = evidence
     guard = Mock(side_effect=AssertionError('Logical evidence cannot access storage'))
     monkeypatch.setattr(evidencias.storage_service, 'get_absolute_path', guard)
@@ -78,9 +83,11 @@ def test_missing_and_manipulated_paths(client):
     c, db, _, version, evidence = client
     db.scalar.return_value = None
     assert c.get('/api/v1/documentos/1/versiones/1/descargar').status_code == 404
+    db.scalar.return_value = None
     db.get.return_value = None
     assert c.get('/api/v1/evidencias/1/descargar').status_code == 404
     evidence.storage_key = '../private'
+    db.scalar.return_value = evidence
     db.get.return_value = evidence
     r = c.get('/api/v1/evidencias/1/descargar')
     assert r.status_code == 400 and 'private' not in r.text

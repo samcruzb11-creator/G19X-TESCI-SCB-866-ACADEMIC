@@ -20,7 +20,7 @@ def records(db_session_factory):
     """Unique test-only records; cleanup deletes only this fixture's identifiers."""
     suffix = uuid4().hex
     with db_session_factory() as db:
-        user = Usuario(nombre="Consistency test", correo=suffix+"@example.invalid", correo_normalizado=suffix+"@example.invalid", password_hash="test-only", rol="AUDITOR_INTERNO")
+        user = Usuario(nombre="Consistency test", correo=suffix+"@example.invalid", correo_normalizado=suffix+"@example.invalid", password_hash="test-only", rol="ADMIN")
         area = Area(codigo=suffix, nombre="Test")
         db.add_all([user, area]); db.flush()
         doc = Documento(codigo=suffix, titulo="Test", tipo="TEST", area_id=area.id, responsable_id=user.id, created_by_id=user.id)

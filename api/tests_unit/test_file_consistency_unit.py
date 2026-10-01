@@ -29,7 +29,7 @@ def no_database(monkeypatch):
 @pytest.fixture(params=["version", "evidence"])
 def operation(request, tmp_path):
     storage = StorageService(tmp_path)
-    actor = Usuario(id=1, nombre="Test", correo="test@example.invalid", rol="AUDITOR_INTERNO")
+    actor = Usuario(id=1, nombre="Test", correo="test@example.invalid", rol="ADMIN")
     doc = Documento(id=1, estado="DRAFT")
     audit = Auditoria(id=1, estado="PLANNED")
     db = Mock()

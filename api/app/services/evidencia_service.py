@@ -25,6 +25,7 @@ from app.models.entities import (
     Usuario,
     VersionDocumento,
 )
+from app.services import authorization_service as authz
 from app.schemas.evidencia import EvidenciaCreate, TipoEvidenciaEnum
 from app.services.storage_service import StorageService, storage_service
 from app.services.file_transaction import commit_stored_file, discard_uncommitted_file, rollback_safely
@@ -190,6 +191,7 @@ class EvidenciaService:
         """
         _validar_auditoria(db, auditoria_id)
         actor = _require_usuario(db, registrada_por_id)
+        authz.authorize_evidence_references(db, actor, auditoria_id, documento_id, version_documento_id)
         documento_id = _validar_documento_y_version(db, documento_id, version_documento_id)
 
         # Escritura física + SHA-256 en streaming
@@ -333,6 +335,7 @@ class EvidenciaService:
 
         _validar_auditoria(db, evidencia_in.auditoria_id)
         actor = _require_usuario(db, registrada_por_id)
+        authz.authorize_evidence_references(db, actor, evidencia_in.auditoria_id, evidencia_in.documento_id, evidencia_in.version_documento_id)
         documento_id = _validar_documento_y_version(
             db, evidencia_in.documento_id, evidencia_in.version_documento_id
         )

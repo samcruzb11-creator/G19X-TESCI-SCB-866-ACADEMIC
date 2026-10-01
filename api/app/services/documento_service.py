@@ -21,6 +21,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.entities import Documento, EventoAuditoria, Usuario, VersionDocumento
+from app.services import authorization_service as authz
 from app.schemas.documento import DocumentoCreate, DocumentoUpdate
 from app.services.storage_service import StorageService, storage_service
 from app.services.file_transaction import commit_stored_file, discard_uncommitted_file, rollback_safely
@@ -115,6 +116,7 @@ class DocumentoService:
             ValueError: Si el código ya existe o el usuario no está registrado.
         """
         # Unicidad del código
+        authz.authorize_document_create(_require_usuario(db, creador_id), doc_in)
         existente = db.scalar(select(Documento).where(Documento.codigo == doc_in.codigo))
         if existente:
             raise ValueError(f"Ya existe un documento con el código '{doc_in.codigo}'")
@@ -221,6 +223,7 @@ class DocumentoService:
             raise ValueError(f"Documento con ID {documento_id} no encontrado")
 
         editor = _require_usuario(db, editor_id)
+        authz.authorize_document_update(editor, documento, doc_update)
 
         # Snapshot previo para la bitácora
         datos_anteriores = {
@@ -307,15 +310,17 @@ class DocumentoService:
             select(Documento)
             .where(Documento.id == documento_id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         if not documento:
             raise ValueError(f"Documento con ID {documento_id} no encontrado")
+        actor = _require_usuario(db, subido_por_id)
+        authz.authorize_version_create(actor, documento)
         if documento.estado in ("ARCHIVED", "OBSOLETE"):
             raise ValueError(
                 f"No se pueden agregar versiones a un documento en estado '{documento.estado}'"
             )
 
-        actor = _require_usuario(db, subido_por_id)
 
         # Número de versión secuencial
         max_version = db.scalar(

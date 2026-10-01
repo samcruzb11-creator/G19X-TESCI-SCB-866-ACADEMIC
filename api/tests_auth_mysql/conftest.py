@@ -122,3 +122,29 @@ def auth_config(monkeypatch):
         yield
     finally:
         event.remove(engine, "do_connect", forbidden)
+
+
+@pytest.fixture
+def clean_temporary_schema(mysql_factory):
+    """Cleanup only the random schema owned by mysql_factory, never the app DB."""
+    engine = mysql_factory.kw['bind']
+    name = engine.url.database
+    assert re.fullmatch(r'sistema_trazabilidad_test_auth_[0-9a-f]{16}', name)
+    assert name.casefold() != settings.db_name.casefold()
+    with engine.connect() as connection:
+        assert connection.exec_driver_sql('SELECT DATABASE()').scalar_one() == name
+        tables = inspect(connection).get_table_names()
+        try:
+            connection.exec_driver_sql('SET FOREIGN_KEY_CHECKS = 0')
+            for table in tables:
+                if table != 'alembic_version':
+                    connection.exec_driver_sql('TRUNCATE TABLE ' + connection.dialect.identifier_preparer.quote(table))
+            connection.commit()
+        finally:
+            try:
+                connection.exec_driver_sql('SET FOREIGN_KEY_CHECKS = 1')
+                connection.commit()
+            except Exception:
+                connection.invalidate()
+                raise
+    yield

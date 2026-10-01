@@ -71,7 +71,7 @@ def test_documento_version_creation_and_audit_trail(db_session_factory):
             correo="auditor@plurione.com",
             correo_normalizado="auditor@plurione.com",
             password_hash="pwd_hash_123",
-            rol="AUDITOR_INTERNO",
+            rol="RESPONSABLE_AREA",
         )
         area = Area(codigo="COMPLIANCE", nombre="Oficina de Cumplimiento")
         session.add_all([u, area])
