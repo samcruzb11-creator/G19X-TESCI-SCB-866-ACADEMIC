@@ -3,14 +3,13 @@ declare(strict_types=1);
 
 const LOGICAL_EVIDENCE_TYPES = ['NOTE' => 'Nota', 'REFERENCE' => 'Referencia', 'OTHER' => 'Otra evidencia'];
 
-function validate_evidence_form(array $input, bool $fileMode, array $audits, array $users, array $documents, array $versions): array
+function validate_evidence_form(array $input, bool $fileMode, array $audits, array $documents, array $versions): array
 {
     $errors = [];
     $values = [
         'titulo' => validated_text($input, 'titulo', $errors, 3, 200),
         'descripcion' => validated_text($input, 'descripcion', $errors, 0, null, true),
         'auditoria_id' => catalog_id($input, 'auditoria_id', $audits, $errors),
-        'registrada_por_id' => catalog_id($input, 'registrada_por_id', $users, $errors),
         'documento_id' => catalog_id($input, 'documento_id', $documents, $errors, false),
         'version_documento_id' => catalog_id($input, 'version_documento_id', $versions, $errors, false),
     ];
@@ -35,8 +34,7 @@ function validate_evidence_form(array $input, bool $fileMode, array $audits, arr
         $body['tipo'] = $values['tipo'];
         $body['referencia_url'] = $values['referencia_url'] === '' ? null : $values['referencia_url'];
         $body['descripcion'] = $values['descripcion'] === '' ? null : $values['descripcion'];
-        unset($body['registrada_por_id']);
-        $query = ['registrada_por_id' => $values['registrada_por_id']];
+        $query = [];
     }
     return ['values' => $values, 'errors' => $errors, 'body' => $body, 'query' => $query];
 }

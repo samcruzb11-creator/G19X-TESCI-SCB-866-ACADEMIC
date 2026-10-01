@@ -10,7 +10,8 @@ form_control('nombre', 'Nombre', $values, $fieldErrors, 'text', true, 200);
 form_control('alcance', 'Alcance', $values, $fieldErrors, 'textarea', true);
 form_control('fecha_inicio_prevista', 'Fecha de inicio prevista', $values, $fieldErrors, 'date');
 form_control('fecha_fin_prevista', 'Fecha de fin prevista', $values, $fieldErrors, 'date');
-form_select('responsable_id', 'Responsable', areas_by_id($availableUsers), $values, $fieldErrors);
-form_select('created_by_id', 'Creador', areas_by_id($availableUsers), $values, $fieldErrors);
+if (user_has_role('ADMIN')) form_select('responsable_id', 'Responsable', areas_by_id($availableUsers), $values, $fieldErrors);
+else echo '<div class="form-field"><label>Responsable</label><p>' . e(current_user()['nombre']) . '</p></div>';
+
 ?>
 </div><div class="form-actions"><button type="submit" class="button button-primary"<?= !$canSubmit ? ' disabled' : '' ?>>Guardar auditoría</button><a class="button button-secondary" href="<?= e(page_url('auditorias')) ?>">Cancelar</a></div></form></div></section>

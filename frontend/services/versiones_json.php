@@ -4,7 +4,7 @@ if (!isset($recordId) || $recordId === null) { http_response_code(404); exit; }
 header('Content-Type: application/json; charset=utf-8');
 $result = api_get('/api/v1/documentos/' . $recordId . '/versiones');
 if (!$result['ok']) {
-    http_response_code($result['status'] === 404 ? 404 : 502);
+    http_response_code(api_http_status($result));
     echo json_encode(['error' => 'No fue posible consultar las versiones.']);
     exit;
 }

@@ -279,6 +279,22 @@ def test_inactive_auditor_not_eligible(rbac):
     assert r.status_code == 404
 
 
+@pytest.mark.parametrize('actor,status', [(1, 200), (2, 200), (3, 403), (4, 403), (5, 403)])
+def test_optional_eligible_audit_catalog(rbac, actor, status):
+    c, db, user, _ = rbac
+    db.get(Usuario, 6).activo = False
+    db.commit()
+    user['id'] = actor
+    response = c.get('/api/v1/usuarios?elegibles_auditoria=true')
+    assert response.status_code == status
+    if status == 200:
+        assert ids(response) == [2, 3]
+        assert all(set(row) == {'id', 'nombre', 'activo'} for row in response.json())
+    if actor == 1:
+        assert ids(c.get('/api/v1/usuarios')) == list(range(1, 8))
+        assert ids(c.get('/api/v1/usuarios?elegibles_auditoria=false')) == list(range(1, 8))
+
+
 def test_version_permission_refreshes_locked_document(rbac, monkeypatch):
     """A stale ORM owner must never authorize a write after reassignment."""
     from sqlalchemy import update

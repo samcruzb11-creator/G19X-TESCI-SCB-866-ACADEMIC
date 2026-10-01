@@ -2,14 +2,11 @@
 declare(strict_types=1);
 if (!isset($route, $documentId) || $documentId === null) { http_response_code(404); exit; }
 
-$sessionReady = frontend_session_start();
-$csrfToken = $sessionReady ? ($_SESSION['csrf_token'] ??= bin2hex(random_bytes(32))) : '';
 $successMessage = $_SESSION['document_success'][$documentId] ?? $_SESSION['version_success'][$documentId] ?? null;
 unset($_SESSION['document_success'][$documentId], $_SESSION['version_success'][$documentId]);
 $uploadError = $sessionReady ? null : 'No fue posible habilitar el envío de archivos. Recarga la página e intenta nuevamente.';
 $downloadError = null;
 $uploadFieldErrors = [];
-$selectedUser = positive_id($_POST['subido_por_id'] ?? null);
 $comment = is_string($_POST['comentario_cambio'] ?? null) ? trim($_POST['comentario_cambio']) : '';
 $documentResult = api_get_object('/api/v1/documentos/' . $documentId);
 $document = $documentResult['data'];
@@ -17,7 +14,7 @@ if ($documentResult['ok'] && positive_id($document['id'] ?? null) !== $documentI
     $documentResult = api_failure();
 }
 if (!$documentResult['ok']) {
-    http_response_code($documentResult['status'] === 404 ? 404 : 502);
+    http_response_code(api_http_status($documentResult));
     session_write_close();
     return;
 }
@@ -33,22 +30,23 @@ if ($action === 'descargar' && $method === 'GET') {
     foreach ($versions as $candidate) {
         if ($versionId !== null && positive_id($candidate['id'] ?? null) === $versionId && positive_id($candidate['documento_id'] ?? null) === $documentId) $version = $candidate;
     }
-    $download = $version !== null ? api_download('/api/v1/documentos/' . $documentId . '/versiones/' . $versionId . '/descargar') : api_failure($versionResult['ok'] ? 404 : 502);
+    $download = $version !== null ? api_download('/api/v1/documentos/' . $documentId . '/versiones/' . $versionId . '/descargar') : api_failure($versionResult['ok'] ? 404 : api_http_status($versionResult));
     if ($download['ok']) {
         send_api_download($download, $version);
     }
-    http_response_code($download['status'] === 404 ? 404 : 502);
-    $downloadError = $download['status'] === 404 ? 'La versión o el archivo solicitado no existen.' : 'No fue posible descargar la versión. Intenta nuevamente.';
+    http_response_code(api_http_status($download));
+    $downloadError = $download['status'] === 404 ? 'La versión o el archivo solicitado no están disponibles.' : 'No fue posible descargar la versión. Intenta nuevamente.';
 }
 
 $areaResult = api_get('/api/v1/areas');
-$userResult = api_get('/api/v1/usuarios');
-$historyResult = api_get('/api/v1/documentos/' . $documentId . '/historial');
+$userResult = can_show_action('usuarios_catalogo') ? api_get('/api/v1/usuarios') : ['ok' => true, 'data' => []];
+$historyResult = can_show_action('historial') ? api_get('/api/v1/documentos/' . $documentId . '/historial') : ['ok' => true, 'data' => []];
 $areaNames = areas_by_id($areaResult['data']);
-$userNames = areas_by_id($userResult['data']);
-$uploadUsers = array_values(array_filter($userResult['data'], fn(array $user): bool => positive_id($user['id'] ?? null) !== null && ($user['activo'] ?? false) === true));
+$userNames = presentation_user_names() + areas_by_id($userResult['data']);
+
 
 if ($method === 'POST') {
+    if (!can_show_action('version_cargar')) throw new ApiPageError(403, 'No tiene permiso para realizar esta operación.');
     $uploadStatus = 422;
     $token = $_POST['csrf_token'] ?? null;
     $file = $_FILES['archivo'] ?? null;
@@ -58,12 +56,6 @@ if ($method === 'POST') {
     } elseif (!csrf_valid($token)) {
         $uploadStatus = 403;
         $uploadError = 'No fue posible validar el envío. Recarga la ficha y selecciona nuevamente el archivo. Si supera el límite de carga, elige un archivo más pequeño.';
-    } elseif (!$userResult['ok']) {
-        $uploadStatus = 503;
-        $uploadError = 'No fue posible consultar los usuarios. Intenta nuevamente.';
-    } elseif (!in_array($selectedUser, array_column($uploadUsers, 'id'), true)) {
-        $uploadError = 'Selecciona un usuario disponible para registrar la versión.';
-        $uploadFieldErrors['subido_por_id'] = $uploadError;
     } elseif (!is_array($file) || !is_int($file['error'] ?? null) || $file['error'] !== UPLOAD_ERR_OK) {
         $uploadError = 'No fue posible recibir el archivo. Selecciónalo nuevamente y comprueba el límite de tamaño indicado.';
         $uploadFieldErrors['archivo'] = $uploadError;
@@ -74,7 +66,7 @@ if ($method === 'POST') {
         $uploadFieldErrors['comentario_cambio'] = 'Introduce un texto válido.';
         $uploadError = 'Revisa los campos marcados.';
     } else {
-        $fields = ['subido_por_id' => (string) $selectedUser];
+        $fields = [];
         if ($comment !== '') $fields['comentario_cambio'] = $comment;
         $result = api_post_multipart('/api/v1/documentos/' . $documentId . '/versiones', $fields, [
             'archivo' => ['path' => $file['tmp_name'], 'name' => $file['name']],
@@ -86,8 +78,8 @@ if ($method === 'POST') {
             header('Location: ' . page_url('documento', ['id' => $documentId]), true, 303);
             exit;
         }
-        $uploadError = 'No fue posible confirmar la carga de la versión. Consulta el historial antes de volver a enviarla.';
-        $uploadStatus = in_array($result['status'], [400, 404, 409, 422], true) ? $result['status'] : 502;
+        $uploadError = 'No fue posible confirmar la carga de la versión. Consulta las versiones antes de volver a enviarla.';
+        $uploadStatus = api_http_status($result);
         if ($result['status'] === 422) {
             foreach ($result['error_fields'] ?? [] as $field) $uploadFieldErrors[$field] = 'Revisa este valor; la API no lo aceptó.';
             $uploadError = 'Revisa los campos marcados y selecciona nuevamente el archivo.';

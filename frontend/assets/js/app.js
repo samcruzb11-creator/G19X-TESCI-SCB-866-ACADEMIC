@@ -51,6 +51,12 @@ if (evidenceForm) {
         url.searchParams.set('id', documentSelect.value);
         try {
             const response = await fetch(url, {signal: controller.signal, headers: {Accept: 'application/json'}});
+            if (response.status === 401) {
+                const login = new URL('index.php', window.location.href);
+                login.searchParams.set('pagina', 'login');
+                window.location.assign(login);
+                return;
+            }
             if (!response.ok) throw new Error('Unavailable');
             const versions = await response.json();
             if (!Array.isArray(versions)) throw new Error('Invalid response');
@@ -67,6 +73,14 @@ if (evidenceForm) {
         } finally {
             clearTimeout(timer);
         }
+    });
+    evidenceForm.querySelector('[name="auditoria_id"]').addEventListener('change', () => {
+        if (request) request.abort();
+        sequence++;
+        documentSelect.value = '';
+        versionSelect.replaceChildren(new Option('Sin vincular', ''));
+        versionSelect.disabled = true;
+        status.textContent = '';
     });
     const type = evidenceForm.querySelector('[name="tipo"]');
     const reference = evidenceForm.querySelector('[name="referencia_url"]');

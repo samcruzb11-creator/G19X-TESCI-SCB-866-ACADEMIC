@@ -3,13 +3,9 @@ declare(strict_types=1);
 if (!isset($route)) { http_response_code(404); exit; }
 require_once __DIR__ . '/evidencia_form.php';
 $fileMode = $page === 'evidencia_archivo';
-$sessionReady = frontend_session_start();
-$csrfToken = $sessionReady ? ($_SESSION['csrf_token'] ??= bin2hex(random_bytes(32))) : '';
 $auditResult = api_get_all('/api/v1/auditorias');
-$userResult = api_get('/api/v1/usuarios');
 $documentResult = api_get_all('/api/v1/documentos');
 $availableAudits = array_values(array_filter($auditResult['data'], fn(array $row): bool => positive_id($row['id'] ?? null) !== null && ($row['estado'] ?? '') !== 'CANCELLED'));
-$availableUsers = active_users($userResult['data']);
 $availableDocuments = $documentResult['data'];
 $post = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
 $input = $post ? $_POST : [];
@@ -21,12 +17,12 @@ if ($selectedDocument !== null && in_array($selectedDocument, array_column($avai
 $availableVersions = $versionResult['data'];
 $prefilledAudit = positive_id($_GET['auditoria_id'] ?? null);
 if (!in_array($prefilledAudit, array_column($availableAudits, 'id'), true)) $prefilledAudit = null;
-$values = ['titulo' => '', 'descripcion' => '', 'auditoria_id' => $prefilledAudit, 'registrada_por_id' => null, 'documento_id' => null, 'version_documento_id' => null, 'tipo' => 'NOTE', 'referencia_url' => ''];
+$values = ['titulo' => '', 'descripcion' => '', 'auditoria_id' => $prefilledAudit, 'documento_id' => null, 'version_documento_id' => null, 'tipo' => 'NOTE', 'referencia_url' => ''];
 $fieldErrors = [];
 $formError = $sessionReady ? null : 'No fue posible habilitar el formulario. Recarga la página.';
-$canSubmit = $sessionReady && $auditResult['ok'] && $userResult['ok'] && $availableAudits !== [] && $availableUsers !== [];
+$canSubmit = $sessionReady && $auditResult['ok'] && $availableAudits !== [];
 if ($post) {
-    $validation = validate_evidence_form($input, $fileMode, $availableAudits, $availableUsers, $availableDocuments, $availableVersions);
+    $validation = validate_evidence_form($input, $fileMode, $availableAudits, $availableDocuments, $availableVersions);
     $values = $validation['values']; $fieldErrors = $validation['errors'];
     $file = $_FILES['archivo'] ?? null;
     if ($fileMode && (!is_array($file) || ($file['error'] ?? null) !== UPLOAD_ERR_OK || !is_string($file['tmp_name'] ?? null) || !is_uploaded_file($file['tmp_name']) || !is_file($file['tmp_name']) || !is_string($file['name'] ?? null))) {
@@ -36,7 +32,7 @@ if ($post) {
         $formError = 'No fue posible validar el envío. Recarga la página. Si el archivo supera el límite de carga, selecciona uno más pequeño.';
         http_response_code(403);
     } elseif (!$canSubmit) {
-        $formError = 'Se requiere una auditoría disponible y un usuario activo para registrar evidencias.';
+        $formError = 'Se requiere una auditoría disponible para registrar evidencias.';
         http_response_code(503);
     } elseif ((!$documentResult['ok'] && $selectedDocument !== null) || !$versionResult['ok']) {
         $formError = 'No fue posible comprobar el documento o sus versiones. Intenta nuevamente.';
@@ -47,7 +43,7 @@ if ($post) {
     } else {
         $result = $fileMode
             ? api_post_multipart('/api/v1/evidencias/archivo', $validation['body'], ['archivo' => ['path' => $file['tmp_name'], 'name' => $file['name']]])
-            : api_post_json('/api/v1/evidencias/logica', $validation['body'], $validation['query']);
+            : api_post_json('/api/v1/evidencias/logica', $validation['body']);
         $newId = positive_id($result['data']['id'] ?? null);
         if ($result['ok'] && $result['status'] === 201 && $newId !== null) {
             $_SESSION['evidence_success'][$newId] = 'Evidencia registrada correctamente.';
@@ -58,7 +54,7 @@ if ($post) {
         }
         $error = record_error($result, 'la evidencia');
         $formError = $error['message']; $fieldErrors = $error['fields'];
-        http_response_code(in_array($result['status'], [400, 404, 409, 422], true) ? $result['status'] : 502);
+        http_response_code(api_http_status($result));
     }
 }
 session_write_close();

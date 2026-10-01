@@ -1,0 +1,12 @@
+<?php if (!isset($route, $loginEmail)) { http_response_code(404); exit; } ?>
+<div class="page-heading"><div><p class="eyebrow">ACCESO AL SISTEMA</p><h1>Iniciar sesión</h1><p class="page-description">Accede con tu cuenta de usuario.</p></div></div>
+<section class="panel login-panel"><div class="upload-body">
+    <?php if (is_string($loginNotice)): ?><div class="notice" role="status"><?= e($loginNotice) ?></div><?php endif; ?>
+    <?php if (is_string($loginError)): ?><div class="notice notice-error" role="alert"><?= e($loginError) ?></div><?php endif; ?>
+    <form action="<?= e(page_url('login')) ?>" method="post">
+        <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
+        <div class="form-field"><label for="correo">Correo</label><input type="email" id="correo" name="correo" autocomplete="username" maxlength="320" value="<?= e($loginEmail) ?>" required></div>
+        <div class="form-field"><label for="password">Contraseña</label><input type="password" id="password" name="password" autocomplete="current-password" required></div>
+        <div class="form-actions"><button type="submit" class="button button-primary">Iniciar sesión</button></div>
+    </form>
+</div></section>

@@ -11,15 +11,20 @@
 </head>
 <body>
 <a class="skip-link" href="#contenido">Ir al contenido</a>
-<?php require __DIR__ . '/sidebar.php'; ?>
-<div class="workspace">
+<?php if (current_user() !== null) require __DIR__ . '/sidebar.php'; ?>
+<div class="workspace<?= current_user() === null ? ' workspace-public' : '' ?>">
     <header class="topbar">
         <div class="topbar-location">
+            <?php if (current_user() !== null): ?>
             <button class="menu-toggle" type="button" aria-controls="sidebar" aria-expanded="false">Menú</button>
             <?php $parentPage = in_array($route['nav'], ['documentos', 'auditorias', 'evidencias'], true) && $page !== $route['nav'] ? $route['nav'] : 'dashboard'; ?>
             <a class="breadcrumb-parent" href="<?= e(page_url($parentPage)) ?>"><?= e(['documentos' => 'Documentos', 'auditorias' => 'Auditorías', 'evidencias' => 'Evidencias', 'dashboard' => 'Inicio'][$parentPage]) ?></a><span class="breadcrumb-divider" aria-hidden="true">/</span>
             <span class="header-title"><?= e($route['title']) ?></span>
+            <?php else: ?><span class="header-title"><?= e(APP_NAME) ?></span><?php endif; ?>
         </div>
-        <span class="current-user">Usuario del sistema</span>
+        <?php if (current_user() !== null): ?>
+        <div class="account-actions"><span class="current-user"><?= e(current_user()['nombre']) ?> · <?= e(current_user()['rol']) ?></span>
+        <form action="<?= e(page_url('logout')) ?>" method="post"><input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>"><button class="button button-secondary" type="submit">Cerrar sesión</button></form></div>
+        <?php endif; ?>
     </header>
     <main id="contenido" class="content" tabindex="-1">

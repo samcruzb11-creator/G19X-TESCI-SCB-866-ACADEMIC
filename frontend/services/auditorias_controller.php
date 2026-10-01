@@ -1,20 +1,22 @@
 <?php
 declare(strict_types=1);
 if (!isset($route)) { http_response_code(404); exit; }
-$userResult = api_get('/api/v1/usuarios');
+$userResult = can_show_action('usuarios_catalogo')
+    ? api_get('/api/v1/usuarios', $page === 'auditoria_nueva' ? ['elegibles_auditoria' => 'true'] : [])
+    : ['ok' => true, 'data' => [current_user() + ['activo' => true]]];
 $userNames = areas_by_id($userResult['data']);
 $availableUsers = active_users($userResult['data']);
 $successMessage = null;
 if ($page === 'auditoria_nueva') {
     require_once __DIR__ . '/auditoria_form.php';
-    $sessionReady = frontend_session_start();
-    $csrfToken = $sessionReady ? ($_SESSION['csrf_token'] ??= bin2hex(random_bytes(32))) : '';
-    $values = ['codigo' => '', 'nombre' => '', 'alcance' => '', 'responsable_id' => null, 'created_by_id' => null, 'fecha_inicio_prevista' => '', 'fecha_fin_prevista' => ''];
+    $values = ['codigo' => '', 'nombre' => '', 'alcance' => '', 'responsable_id' => null, 'fecha_inicio_prevista' => '', 'fecha_fin_prevista' => ''];
     $fieldErrors = [];
     $formError = $sessionReady ? null : 'No fue posible habilitar el formulario. Recarga la página.';
     $canSubmit = $sessionReady && $userResult['ok'] && $availableUsers !== [];
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-        $validation = validate_audit_form($_POST, $availableUsers);
+        $input = $_POST;
+        if (user_has_role('AUDITOR_INTERNO')) $input['responsable_id'] = current_user()['id'];
+        $validation = validate_audit_form($input, $availableUsers);
         $values = $validation['values'];
         $fieldErrors = $validation['errors'];
         if (!$sessionReady || !csrf_valid($_POST['csrf_token'] ?? null)) {
@@ -38,7 +40,7 @@ if ($page === 'auditoria_nueva') {
             }
             $error = record_error($result, 'la auditoría');
             $formError = $error['message']; $fieldErrors = $error['fields'];
-            http_response_code(in_array($result['status'], [400, 404, 409, 422], true) ? $result['status'] : 502);
+            http_response_code(api_http_status($result));
         }
     }
     session_write_close();
@@ -59,8 +61,7 @@ if ($page === 'auditorias') {
 if ($page === 'auditoria') {
     $audit = null;
     foreach ($audits as $row) if (positive_id($row['id'] ?? null) === $recordId) $audit = $row;
-    if (!$auditResult['ok'] || $audit === null) http_response_code($auditResult['ok'] ? 404 : 502);
-    $sessionReady = frontend_session_start();
+    if (!$auditResult['ok'] || $audit === null) http_response_code($auditResult['ok'] ? 404 : api_http_status($auditResult));
     $successMessage = $_SESSION['audit_success'][$recordId] ?? null;
     unset($_SESSION['audit_success'][$recordId]);
     session_write_close();

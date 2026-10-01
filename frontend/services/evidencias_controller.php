@@ -13,4 +13,4 @@ $listQuery = $auditFilter === null ? [] : ['auditoria_id' => $auditFilter];
 $evidenceResult = $filterInvalid ? api_failure(422) : api_get('/api/v1/evidencias', $listQuery + ['limit' => 51, 'offset' => $offset]);
 $hasNext = count($evidenceResult['data']) > 50;
 $evidences = array_slice($evidenceResult['data'], 0, 50);
-if (!$evidenceResult['ok']) http_response_code($filterInvalid ? 422 : 502);
+if (!$evidenceResult['ok']) http_response_code($filterInvalid ? 422 : api_http_status($evidenceResult));

@@ -20,9 +20,11 @@ def listar_areas(user: Usuario = Depends(current_user),
 
 
 @router.get("/usuarios", response_model=list[UsuarioRead])
-def listar_usuarios(user: Usuario = Depends(current_user),
+def listar_usuarios(elegibles_auditoria: bool = False, user: Usuario = Depends(current_user),
     db: Session = Depends(get_db)):
     authz.require_permission(user, 'usuarios.read')
     stmt = select(Usuario.id, Usuario.nombre, Usuario.activo)
     stmt = stmt.where(authz.usuarios_scope(user))
+    if elegibles_auditoria:
+        stmt = stmt.where(authz.eligible_users_scope())
     return db.execute(stmt.order_by(Usuario.nombre, Usuario.id)).mappings().all()

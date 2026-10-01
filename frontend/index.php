@@ -8,12 +8,15 @@ require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/session.php';
 require_once __DIR__ . '/services/api_client.php';
+require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/services/download_response.php';
 require_once __DIR__ . '/services/registro_helpers.php';
 require_once __DIR__ . '/includes/form_fields.php';
 require_once __DIR__ . '/includes/list_filters.php';
 
 $routes = [
+    'login' => ['title' => 'Iniciar sesión', 'file' => 'login.php', 'nav' => ''],
+    'logout' => ['title' => 'Cerrar sesión', 'file' => 'error.php', 'nav' => ''],
     'dashboard' => ['title' => 'Dashboard', 'file' => 'dashboard.php', 'nav' => 'dashboard'],
     'documentos' => ['title' => 'Documentos', 'file' => 'documentos.php', 'nav' => 'documentos'],
     'auditorias' => ['title' => 'Auditorías', 'file' => 'auditorias.php', 'nav' => 'auditorias'],
@@ -44,27 +47,72 @@ header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');
 header("Content-Security-Policy: default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
 
-if (!$notFound && $page === 'documento') {
-    require __DIR__ . '/services/documento_controller.php';
+$sessionReady = frontend_session_start();
+try {
+    if (!$sessionReady) throw new ApiPageError(503, 'No fue posible habilitar la sesión. Intenta nuevamente.');
+    $csrfToken = csrf_token();
+    if (!$notFound && in_array($page, ['login', 'logout'], true)) {
+        require __DIR__ . '/services/auth_controller.php';
+    } else {
+        require_login();
+        $action = [
+            'dashboard' => null, 'documentos' => 'documentos', 'documento' => 'documentos',
+            'documento_nuevo' => 'documento_crear', 'versiones_documento' => 'documentos',
+            'auditorias' => 'auditorias', 'auditoria' => 'auditorias', 'auditoria_nueva' => 'auditoria_crear',
+            'evidencias' => 'evidencias', 'evidencia' => 'evidencias',
+            'evidencia_archivo' => 'evidencia_crear', 'evidencia_logica' => 'evidencia_crear',
+        ][$page] ?? null;
+        if ($action !== null && !can_show_action($action)) throw new ApiPageError(403, 'No tiene permiso para realizar esta operación.');
+        if (!$notFound && $page === 'dashboard') require __DIR__ . '/services/dashboard_controller.php';
+        if (!$notFound && $page === 'documentos') require __DIR__ . '/services/documentos_controller.php';
+        if (!$notFound && $page === 'documento') {
+            require __DIR__ . '/services/documento_controller.php';
+        }
+        if (!$notFound && $page === 'documento_nuevo') {
+            require __DIR__ . '/services/documento_nuevo_controller.php';
+        }
+        if (!$notFound && in_array($page, ['auditorias', 'auditoria', 'auditoria_nueva'], true)) {
+            require __DIR__ . '/services/auditorias_controller.php';
+        }
+        if (!$notFound && in_array($page, ['evidencia_archivo', 'evidencia_logica'], true)) {
+            require __DIR__ . '/services/evidencia_nueva_controller.php';
+        }
+        if (!$notFound && $page === 'evidencia') {
+            require __DIR__ . '/services/evidencia_controller.php';
+        }
+        if (!$notFound && $page === 'evidencias') {
+            require __DIR__ . '/services/evidencias_controller.php';
+        }
+        if (!$notFound && $page === 'versiones_documento') {
+            require __DIR__ . '/services/versiones_json.php';
+        }
+
+    }
+} catch (AuthenticationRequired $exception) {
+    clear_authentication($exception->expired ? 'expired' : null);
+    if ($page === 'versiones_documento') {
+        http_response_code(401);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => 'session_expired']);
+        exit;
+    }
+    redirect_to_login();
+} catch (ApiPageError $exception) {
+    http_response_code($exception->status);
+    $errorMessage = $exception->getMessage();
+    $route = ['title' => $exception->status === 403 ? 'Acceso denegado' : 'Información no disponible', 'file' => 'error.php', 'nav' => ''];
+    if ($page === 'versiones_documento') {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => $errorMessage]);
+        exit;
+    }
+} catch (Throwable $exception) {
+    error_log('Frontend request failed: ' . get_class($exception));
+    http_response_code(500);
+    $errorMessage = 'No fue posible completar la solicitud. Intenta nuevamente.';
+    $route = ['title' => 'Información no disponible', 'file' => 'error.php', 'nav' => ''];
 }
-if (!$notFound && $page === 'documento_nuevo') {
-    require __DIR__ . '/services/documento_nuevo_controller.php';
-}
-if (!$notFound && in_array($page, ['auditorias', 'auditoria', 'auditoria_nueva'], true)) {
-    require __DIR__ . '/services/auditorias_controller.php';
-}
-if (!$notFound && in_array($page, ['evidencia_archivo', 'evidencia_logica'], true)) {
-    require __DIR__ . '/services/evidencia_nueva_controller.php';
-}
-if (!$notFound && $page === 'evidencia') {
-    require __DIR__ . '/services/evidencia_controller.php';
-}
-if (!$notFound && $page === 'evidencias') {
-    require __DIR__ . '/services/evidencias_controller.php';
-}
-if (!$notFound && $page === 'versiones_documento') {
-    require __DIR__ . '/services/versiones_json.php';
-}
+if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
 
 require __DIR__ . '/includes/header.php';
 require __DIR__ . '/pages/' . $route['file'];

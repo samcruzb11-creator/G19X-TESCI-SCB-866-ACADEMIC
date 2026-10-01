@@ -6,7 +6,7 @@
     </a>
     <div class="nav-label">ESPACIO DE TRABAJO</div>
     <nav aria-label="Navegación principal">
-        <?php foreach (['dashboard' => 'Dashboard', 'documentos' => 'Documentos', 'auditorias' => 'Auditorías', 'evidencias' => 'Evidencias'] as $key => $label): ?>
+        <?php foreach (navigation_items() as $key => $label): ?>
             <a class="nav-link<?= $route['nav'] === $key ? ' is-active' : '' ?>" href="<?= e(page_url($key)) ?>"<?= $route['nav'] === $key ? ' aria-current="page"' : '' ?>><?= e($label) ?></a>
         <?php endforeach; ?>
     </nav>

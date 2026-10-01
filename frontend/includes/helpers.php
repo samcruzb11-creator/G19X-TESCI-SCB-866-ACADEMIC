@@ -73,6 +73,7 @@ function version_label(array $document): string
             return 'v' . $number;
         }
     }
+    if (user_has_role('APROBADOR')) return 'No disponible';
     return positive_id($document['version_vigente_id'] ?? null) !== null ? 'Registrada' : 'Sin versión';
 }
 

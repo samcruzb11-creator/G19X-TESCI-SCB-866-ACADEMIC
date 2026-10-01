@@ -25,7 +25,7 @@ function validate_document_form(array $input, array $areas, array $users): array
     $state = $input['estado'] ?? 'DRAFT';
     $values['estado'] = is_string($state) ? trim($state) : '';
     if (!array_key_exists($values['estado'], DOCUMENT_STATES)) $errors['estado'] = 'Selecciona un estado válido.';
-    foreach (['area_id', 'responsable_id', 'creador_id'] as $field) {
+    foreach (['area_id', 'responsable_id'] as $field) {
         $id = positive_id($input[$field] ?? null);
         $values[$field] = $id;
         $catalog = $field === 'area_id' ? $areas : $users;
@@ -35,7 +35,6 @@ function validate_document_form(array $input, array $areas, array $users): array
     }
     return [
         'values' => $values, 'errors' => $errors,
-        'query' => ['creador_id' => $values['creador_id']],
         'body' => [
             'codigo' => $values['codigo'], 'titulo' => $values['titulo'],
             'descripcion' => $values['descripcion'] === '' ? null : $values['descripcion'],
@@ -52,9 +51,6 @@ function document_creation_error(array $result): array
     switch ($result['error_code'] ?? '') {
         case 'duplicate_code':
             $message = $fields['codigo'] = 'El código indicado ya existe.';
-            break;
-        case 'creator_not_found':
-            $message = $fields['creador_id'] = 'El creador seleccionado no existe.';
             break;
         case 'validation':
             foreach ($result['error_fields'] ?? [] as $field) $fields[$field] = 'Revisa este valor; la API no lo aceptó.';
