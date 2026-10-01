@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import quote_plus
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 API_ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +24,12 @@ class Settings(BaseSettings):
 
     jwt_secret_key: str = "replace-with-a-long-random-secret"
     jwt_algorithm: str = "HS256"
+    rate_limit_login_requests_per_minute: int = Field(default=120, ge=1, le=100000)
+    rate_limit_identifier_requests_per_minute: int = Field(default=10, ge=1, le=100000)
+    rate_limit_failure_window_seconds: int = Field(default=600, ge=1, le=1200)
+    rate_limit_challenge_failures: int = Field(default=5, ge=1, le=100000)
+    rate_limit_argon2_per_minute: int = Field(default=60, ge=1, le=100000)
+    rate_limit_argon2_concurrency: int = Field(default=2, ge=1, le=32)
     storage_path: Path = STORAGE_ROOT
 
     @field_validator("storage_path", mode="before")

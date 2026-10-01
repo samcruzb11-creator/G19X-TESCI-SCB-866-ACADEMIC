@@ -50,10 +50,19 @@ function api_request(string $method, string $path, array $query = [], ?array $mu
         return api_failure();
     }
     try {
+        $authRequest = str_starts_with($path, '/api/v1/auth/');
+        $retryAfter = null;
         curl_setopt_array($handle, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => API_CONNECT_TIMEOUT,
-            CURLOPT_TIMEOUT => $method === 'POST' ? 120 : API_TIMEOUT,
+            CURLOPT_TIMEOUT => $authRequest ? auth_api_timeout_seconds() : ($method === 'POST' ? 120 : API_TIMEOUT),
+            CURLOPT_HEADERFUNCTION => static function ($handle, string $line) use (&$retryAfter): int {
+                if (str_starts_with($line, 'HTTP/')) $retryAfter = null;
+                if (preg_match('/\ARetry-After:\s*([0-9]{1,5})\s*\z/i', trim($line), $match)) {
+                    $retryAfter = max(1, min(1200, (int) $match[1]));
+                }
+                return strlen($line);
+            },
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
@@ -70,6 +79,7 @@ function api_request(string $method, string $path, array $query = [], ?array $mu
         $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
         if ($body === false || $status < 200 || $status >= 300) {
             $result = $body === false ? api_failure($status) : api_error_response($status, $body);
+            if ($status === 429 && $retryAfter !== null) $result['retry_after'] = $retryAfter;
         } elseif ($status === 204) {
             $result = ['ok' => true, 'status' => 204, 'data' => [], 'message' => ''];
         } else {

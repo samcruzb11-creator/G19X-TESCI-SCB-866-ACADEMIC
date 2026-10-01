@@ -68,7 +68,7 @@ def mysql_factory():
 
             def snapshot():
                 tables = sorted(t for t in inspect(connection).get_table_names()
-                                if t not in {"auth_sessions", "alembic_version"})
+                                if t not in {"auth_sessions", "auth_login_limits", "alembic_version"})
                 return {t: (connection.exec_driver_sql(f"SHOW CREATE TABLE `{t}`").one()[1],
                             [tuple(row) for row in connection.exec_driver_sql(f"SELECT * FROM `{t}`")])
                         for t in tables}
@@ -92,7 +92,28 @@ def mysql_factory():
             assert connection.execute(text("SELECT COUNT(*) FROM auth_sessions")).scalar_one() == 0
             assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "002"
             connection.commit()
-        print(f"\nMySQL {version}; temporary schema {name}; Alembic 001->002->001->002 OK; domain DDL/rows unchanged")
+            connection.execute(text("INSERT INTO auth_sessions (sid,usuario_id,created_at,expires_at) "
+                "SELECT :sid,id,UTC_TIMESTAMP(6),DATE_ADD(UTC_TIMESTAMP(6), INTERVAL 15 MINUTE) "
+                "FROM usuarios WHERE correo_normalizado='sentinel@example.invalid'"), {"sid": secrets.token_hex(32)})
+            connection.commit()
+            sessions_before = connection.execute(text("SELECT * FROM auth_sessions")).all()
+            connection.commit()
+            command.upgrade(cfg, "003")
+            assert snapshot() == baseline
+            assert connection.execute(text("SELECT * FROM auth_sessions")).all() == sessions_before
+            assert "auth_login_limits" in inspect(connection).get_table_names()
+            connection.commit()
+            command.downgrade(cfg, "002")
+            assert snapshot() == baseline
+            assert connection.execute(text("SELECT * FROM auth_sessions")).all() == sessions_before
+            assert "auth_login_limits" not in inspect(connection).get_table_names()
+            assert {i['name'] for i in inspect(connection).get_indexes('auth_sessions')} == {'ix_auth_sessions_usuario'}
+            connection.commit()
+            command.upgrade(cfg, "003")
+            assert snapshot() == baseline
+            assert connection.execute(text("SELECT * FROM auth_sessions")).all() == sessions_before
+            connection.commit()
+        print(f"\nMySQL {version}; temporary schema {name}; Alembic 001->002->001->002->003->002->003 OK; domain DDL/rows and existing sessions preserved")
         yield sessionmaker(bind=engine, autoflush=False, autocommit=False)
     finally:
         if engine is not None:
@@ -111,6 +132,8 @@ def mysql_factory():
 def auth_config(monkeypatch):
     monkeypatch.setattr(settings, "jwt_secret_key", secrets.token_urlsafe(64))
     monkeypatch.setattr(settings, "jwt_algorithm", "HS256")
+    from app.services import login_protection
+    monkeypatch.setattr(login_protection, "global_budget", login_protection.GlobalLoginBudget())
     # The application engine must never connect, including when testing the tool.
     from app.db.session import engine
 

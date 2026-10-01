@@ -36,7 +36,7 @@ def rbac(tmp_path, monkeypatch, request):
         engine = create_engine('sqlite://', poolclass=StaticPool, connect_args={'check_same_thread': False})
         ddl = MetaData()
         for table in Base.metadata.tables.values():
-            if table.name == 'auth_sessions': continue
+            if table.name in {'auth_sessions', 'auth_login_limits'}: continue
             copy = table.to_metadata(ddl)
             for column in copy.columns:
                 column.server_default = None

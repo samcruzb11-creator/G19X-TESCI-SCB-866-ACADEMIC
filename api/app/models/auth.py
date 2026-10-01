@@ -11,7 +11,8 @@ from app.models.entities import _id_column
 
 class AuthSession(Base):
     __tablename__ = "auth_sessions"
-    __table_args__ = (Index("ix_auth_sessions_usuario", "usuario_id"), {"mysql_engine": "InnoDB"})
+    __table_args__ = (Index("ix_auth_sessions_usuario", "usuario_id"),
+                      Index("ix_auth_sessions_expires_at", "expires_at"), {"mysql_engine": "InnoDB"})
 
     sid: Mapped[str] = mapped_column(String(64, collation="ascii_bin"), primary_key=True)
     usuario_id: Mapped[int] = mapped_column(
@@ -21,3 +22,16 @@ class AuthSession(Base):
     created_at: Mapped[datetime] = mapped_column(mysql.DATETIME(fsp=6), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(mysql.DATETIME(fsp=6), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(mysql.DATETIME(fsp=6), nullable=True)
+
+
+class AuthLoginLimit(Base):
+    __tablename__ = "auth_login_limits"
+    __table_args__ = (Index("ix_auth_login_limits_expires_at", "expires_at"),
+                     {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"})
+
+    identifier: Mapped[str] = mapped_column(String(320, collation="utf8mb4_unicode_ci"), primary_key=True)
+    request_window: Mapped[datetime] = mapped_column(mysql.DATETIME(fsp=6), nullable=False)
+    request_count: Mapped[int] = mapped_column(mysql.INTEGER(unsigned=True), nullable=False)
+    failure_window: Mapped[datetime] = mapped_column(mysql.DATETIME(fsp=6), nullable=False)
+    failure_count: Mapped[int] = mapped_column(mysql.INTEGER(unsigned=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(mysql.DATETIME(fsp=6), nullable=False)

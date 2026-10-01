@@ -55,6 +55,13 @@ class MemoryDB:
 
 @pytest.fixture
 def client(monkeypatch):
+    from app.services import login_protection
+    def reserve(db, identifier):
+        login_protection.global_budget.acquire_argon2()
+        return None
+    # Legacy credential tests use a DB double; real admission is covered separately.
+    monkeypatch.setattr(login_protection, "reserve", reserve)
+    monkeypatch.setattr(login_protection, "release_reservation", lambda *args: None)
     monkeypatch.setattr(Engine, "connect", Mock(side_effect=AssertionError("Real database forbidden")))
     monkeypatch.setattr(settings, "jwt_algorithm", "HS256")
     user = Usuario(id=1, nombre="Test", correo="test@example.invalid", correo_normalizado="test@example.invalid",

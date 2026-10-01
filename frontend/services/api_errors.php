@@ -24,12 +24,13 @@ function api_error_response(int $status, string $body): array
     $detail = is_array($error) ? ($error['detail'] ?? null) : null;
     $result['error_code'] = match ($status) {
         401 => 'unauthenticated', 403 => 'forbidden', 404 => 'not_found',
-        422 => 'validation', 409 => 'conflict', default => $status >= 500 ? 'server' : 'request',
+        422 => 'validation', 409 => 'conflict', 429 => 'rate_limited', default => $status >= 500 ? 'server' : 'request',
     };
     $result['message'] = match ($status) {
         401 => 'Credenciales inválidas.',
         403 => 'No tiene permiso para realizar esta operación.',
         404 => 'El recurso solicitado no está disponible.',
+        429 => 'Demasiados intentos. Intente nuevamente más tarde.',
         default => $result['message'],
     };
     $result['error_fields'] = [];

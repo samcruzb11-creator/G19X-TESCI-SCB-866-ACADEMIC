@@ -15,6 +15,7 @@ from app.routers.catalogos import router as catalogos_router
 from app.routers.auditorias import router as auditorias_router
 from app.routers.auth import router as auth_router
 from app.core.security import validate_jwt_config
+from app.services.login_protection import AuthResponseMiddleware
 
 
 @asynccontextmanager
@@ -51,6 +52,7 @@ app.include_router(evidencias_router, prefix=settings.api_v1_prefix)
 app.include_router(catalogos_router, prefix=settings.api_v1_prefix)
 app.include_router(auditorias_router, prefix=settings.api_v1_prefix)
 app.include_router(auth_router, prefix=settings.api_v1_prefix)
+app.add_middleware(AuthResponseMiddleware)
 
 
 @app.exception_handler(RequestValidationError)
@@ -64,7 +66,9 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 @app.exception_handler(Exception)
 async def internal_error_handler(request: Request, exc: Exception) -> JSONResponse:
     log_error_kind(exc)
-    return JSONResponse(status_code=500, content={"detail": "Error interno del servidor"})
+    # ServerErrorMiddleware is outside user middleware, including no-store.
+    headers = {"Cache-Control": "no-store"} if request.url.path.startswith(settings.api_v1_prefix + "/auth/") else None
+    return JSONResponse(status_code=500, content={"detail": "Error interno del servidor"}, headers=headers)
 
 
 @app.exception_handler(CommitOutcomeUnknown)

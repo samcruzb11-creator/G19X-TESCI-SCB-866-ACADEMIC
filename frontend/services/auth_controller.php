@@ -61,7 +61,14 @@ if ($method === 'POST') {
             }
         } else {
             http_response_code(api_http_status($result));
-            $loginError = $result['status'] === 401 ? 'Credenciales inválidas.' : 'No fue posible iniciar sesión. Intenta nuevamente.';
+            if ($result['status'] === 429 && isset($result['retry_after'])) {
+                header('Retry-After: ' . $result['retry_after']);
+            }
+            $loginError = match ($result['status']) {
+                401 => 'Credenciales inválidas.',
+                429 => 'Demasiados intentos. Intente nuevamente más tarde.',
+                default => 'No fue posible iniciar sesión. Intenta nuevamente.',
+            };
         }
     }
 } elseif ($method !== 'GET') {

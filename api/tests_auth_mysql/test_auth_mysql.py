@@ -92,7 +92,7 @@ def test_schema(mysql_factory):
         fk = inspector.get_foreign_keys("auth_sessions")[0]
         assert fk["name"] == "fk_auth_sessions_usuario"
         assert fk["referred_table"] == "usuarios" and fk["referred_columns"] == ["id"]
-        assert {i["name"] for i in inspector.get_indexes("auth_sessions")} == {"ix_auth_sessions_usuario"}
+        assert {i["name"] for i in inspector.get_indexes("auth_sessions")} == {"ix_auth_sessions_usuario", "ix_auth_sessions_expires_at"}
         ddl = db.execute(text("SHOW CREATE TABLE auth_sessions")).one()[1]
         assert "ENGINE=InnoDB" in ddl and "ascii_bin" in ddl
         assert "ON DELETE RESTRICT ON UPDATE RESTRICT" in ddl
@@ -297,8 +297,10 @@ def test_failed_session_commit_rolls_back(mysql_factory, user):
 
     class FailingSession(Session):
         def commit(self):
-            self.flush()
-            raise RuntimeError("simulated precommit failure")
+            if any(isinstance(value, AuthSession) for value in self.new):
+                self.flush()
+                raise RuntimeError("simulated precommit failure")
+            super().commit()
 
     with FailingSession(bind=mysql_factory.kw["bind"], autoflush=False) as db:
         with pytest.raises(RuntimeError):

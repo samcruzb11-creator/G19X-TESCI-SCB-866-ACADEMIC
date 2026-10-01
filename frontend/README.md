@@ -3,6 +3,15 @@
 PHP 8.1 o superior con cURL, mbstring y fileinfo. No requiere Composer ni frameworks.
 El frontend consume FastAPI; no accede directamente a MySQL.
 
+6B.4A: el entorno del proceso PHP admite `AUTH_API_TIMEOUT_SECONDS=10` para
+login/me/logout y `FRONTEND_COOKIE_SECURE=auto|always` (default `auto`). Valores
+inválidos fallan de forma segura; no se leen de encabezados HTTP. `always` es solo
+para sitios exclusivamente HTTPS; `auto` conserva HTTP local. No crear un `.env`
+bajo el web root. El GC de sesiones se fija a 1800 s, probabilidad 1/100 y archivos
+privados; es probabilístico y no garantiza limpieza sin tráfico. En Windows se
+requieren permisos NTFS adecuados. Detalles, proxy futuro y mantenimiento:
+[FASE_6B_4A_AUTH_HARDENING.md](../docs/FASE_6B_4A_AUTH_HARDENING.md).
+
 Desde la raíz del proyecto, en PowerShell:
 
 ```powershell

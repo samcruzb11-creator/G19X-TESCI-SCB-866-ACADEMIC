@@ -1,5 +1,5 @@
 """Business models exported for application use and Alembic discovery."""
-from app.models.auth import AuthSession
+from app.models.auth import AuthSession, AuthLoginLimit
 
 from app.models.entities import (
     Area,
@@ -18,6 +18,7 @@ from app.models.entities import (
 
 __all__ = [
     "AuthSession",
+    "AuthLoginLimit",
     "Area",
     "Auditoria",
     "DecisionAprobacion",
