@@ -4,10 +4,17 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/api_errors.php';
 
+function public_auth_endpoint(string $path): bool
+{
+    return in_array($path, ['/api/v1/auth/login', '/api/v1/auth/access-requests',
+        '/api/v1/auth/password-reset/request', '/api/v1/auth/password-reset/confirm',
+        '/api/v1/auth/initial-password/confirm'], true);
+}
+
 /** Only known API resources may be addressed; never accept a client-supplied URL. */
 function api_url(string $path, array $query = []): ?string
 {
-    if (!preg_match('~\A/api/v1/(?:auth/(?:login|me|logout)|areas|usuarios|auditorias|evidencias(?:/(?:archivo|logica|[1-9][0-9]*(?:/descargar)?))?|documentos(?:/[1-9][0-9]*(?:/(?:historial|versiones(?:/[1-9][0-9]*/descargar)?))?)?)\z~', $path)) {
+    if (!preg_match('~\A/api/v1/(?:auth/(?:login|me|logout|access-requests|password-reset/(?:request|confirm)|initial-password/confirm)|access-requests(?:/[1-9][0-9]*(?:/(?:approve|reject|resend))?)?|areas|usuarios|auditorias|evidencias(?:/(?:archivo|logica|[1-9][0-9]*(?:/descargar)?))?|documentos(?:/[1-9][0-9]*(?:/(?:historial|versiones(?:/[1-9][0-9]*/descargar)?))?)?)\z~', $path)) {
         return null;
     }
     $url = rtrim(API_BASE_URL, '/') . $path;
@@ -21,7 +28,7 @@ function api_url(string $path, array $query = []): ?string
 function api_headers(string $path, bool $json = false): array
 {
     $headers = ['Accept: application/json'];
-    if ($path !== '/api/v1/auth/login') {
+    if (!public_auth_endpoint($path)) {
         $token = $_SESSION['auth']['access_token'] ?? null;
         if (!is_string($token) || $token === '' || preg_match('/[\r\n]/', $token)) throw new AuthenticationRequired();
         $headers[] = 'Authorization: Bearer ' . $token;
@@ -38,6 +45,8 @@ function api_request(string $method, string $path, array $query = [], ?array $mu
         return api_failure();
     }
     if ($method === 'POST' && !(
+        ((public_auth_endpoint($path) || preg_match('~\A/api/v1/access-requests/[1-9][0-9]*/(?:approve|reject|resend)\z~', $path)) && $json !== null && $multipart === null)
+        ||
         (in_array($path, ['/api/v1/auth/login', '/api/v1/documentos', '/api/v1/auditorias', '/api/v1/evidencias/logica'], true) && $json !== null && $multipart === null)
         || ($path === '/api/v1/auth/logout' && $multipart === null && $json === null)
         || (($path === '/api/v1/evidencias/archivo' || preg_match('~\A/api/v1/documentos/[1-9][0-9]*/versiones\z~', $path)) && $multipart !== null && $json === null)
@@ -70,7 +79,8 @@ function api_request(string $method, string $path, array $query = [], ?array $mu
         if ($method === 'POST') {
             curl_setopt($handle, CURLOPT_POST, true);
             if ($json !== null) {
-                curl_setopt($handle, CURLOPT_POSTFIELDS, json_encode($json, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+                // API JSON bodies are objects, including an empty resend command.
+                curl_setopt($handle, CURLOPT_POSTFIELDS, json_encode((object) $json, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
             } elseif ($multipart !== null) {
                 curl_setopt($handle, CURLOPT_POSTFIELDS, $multipart);
             }

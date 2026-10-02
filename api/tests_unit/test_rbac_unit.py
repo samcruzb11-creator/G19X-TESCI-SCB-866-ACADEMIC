@@ -36,7 +36,10 @@ def rbac(tmp_path, monkeypatch, request):
         engine = create_engine('sqlite://', poolclass=StaticPool, connect_args={'check_same_thread': False})
         ddl = MetaData()
         for table in Base.metadata.tables.values():
-            if table.name in {'auth_sessions', 'auth_login_limits'}: continue
+            # This SQLite copy covers domain RBAC only. Authentication tables use
+            # MySQL collation/locking and are exercised on real temporary MySQL.
+            if table.name in {'auth_sessions', 'auth_login_limits', 'access_requests',
+                              'auth_action_limits', 'auth_action_tokens', 'auth_mail_jobs'}: continue
             copy = table.to_metadata(ddl)
             for column in copy.columns:
                 column.server_default = None

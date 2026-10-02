@@ -63,7 +63,7 @@ function api_finish(array $result, string $path): array
         if (($result['status'] ?? 0) === 0 || ($result['status'] ?? 0) >= 500) {
             error_log('Frontend API unavailable: status=' . (int) ($result['status'] ?? 0));
         }
-        if (!in_array($path, ['/api/v1/auth/login', '/api/v1/auth/logout'], true)) {
+        if (!public_auth_endpoint($path) && $path !== '/api/v1/auth/logout') {
             if ($result['status'] === 401) throw new AuthenticationRequired();
             if ($result['status'] === 403) throw new ApiPageError(403, $result['message']);
         }

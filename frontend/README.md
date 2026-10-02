@@ -141,3 +141,14 @@ una sola vez. JavaScript enfoca el primer campo inválido y devuelve el foco al
 botón Menú al cerrarlo con Escape.
 
 Validación de esta fase: [VALIDACION_FASE5.md](VALIDACION_FASE5.md).
+
+## Fase 6C: acceso y recuperación
+
+El login usa un layout de dos columnas en escritorio y una columna en móvil.
+`solicitar_acceso` y `recuperar_password` son formularios públicos con CSRF;
+`establecer_password` y `restablecer_password` reciben el código mediante fragmento
+local y lo envían por POST. PHP no conserva códigos ni contraseñas en sesión.
+`solicitudes_acceso`/`solicitud_acceso` requieren ADMIN; FastAPI vuelve a autorizar
+cada operación. El JWT continúa exclusivamente en la sesión del servidor PHP.
+
+Diseño, operación, configuración y validación: [FASE_6C_ACCESO_RECUPERACION.md](../docs/FASE_6C_ACCESO_RECUPERACION.md).

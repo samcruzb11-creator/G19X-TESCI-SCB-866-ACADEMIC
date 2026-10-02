@@ -15,6 +15,12 @@ require_once __DIR__ . '/includes/form_fields.php';
 require_once __DIR__ . '/includes/list_filters.php';
 
 $routes = [
+    'solicitar_acceso' => ['title' => 'Solicita acceso', 'file' => 'public_auth.php', 'nav' => ''],
+    'recuperar_password' => ['title' => 'Recupera tu contraseña', 'file' => 'public_auth.php', 'nav' => ''],
+    'restablecer_password' => ['title' => 'Restablece tu contraseña', 'file' => 'public_auth.php', 'nav' => ''],
+    'establecer_password' => ['title' => 'Establece tu contraseña', 'file' => 'public_auth.php', 'nav' => ''],
+    'solicitudes_acceso' => ['title' => 'Solicitudes de acceso', 'file' => 'access_requests.php', 'nav' => 'solicitudes_acceso'],
+    'solicitud_acceso' => ['title' => 'Solicitud de acceso', 'file' => 'access_requests.php', 'nav' => 'solicitudes_acceso'],
     'login' => ['title' => 'Iniciar sesión', 'file' => 'login.php', 'nav' => ''],
     'logout' => ['title' => 'Cerrar sesión', 'file' => 'error.php', 'nav' => ''],
     'dashboard' => ['title' => 'Dashboard', 'file' => 'dashboard.php', 'nav' => 'dashboard'],
@@ -32,6 +38,8 @@ $routes = [
 ];
 $requestedPage = $_GET['pagina'] ?? 'dashboard';
 $page = is_string($requestedPage) ? $requestedPage : '';
+$publicAuthPages = ['solicitar_acceso', 'recuperar_password', 'restablecer_password', 'establecer_password'];
+$authLayout = $page === 'login' || in_array($page, $publicAuthPages, true);
 $notFound = !isset($routes[$page]);
 $documentId = positive_id($_GET['id'] ?? null);
 $recordId = $documentId;
@@ -45,7 +53,8 @@ if ($notFound) {
 header('Content-Type: text/html; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');
-header("Content-Security-Policy: default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+if ($authLayout) header('Referrer-Policy: no-referrer');
+header("Content-Security-Policy: default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
 
 $sessionReady = frontend_session_start();
 try {
@@ -53,9 +62,12 @@ try {
     $csrfToken = csrf_token();
     if (!$notFound && in_array($page, ['login', 'logout'], true)) {
         require __DIR__ . '/services/auth_controller.php';
+    } elseif (!$notFound && in_array($page, $publicAuthPages, true)) {
+        require __DIR__ . '/services/public_auth_controller.php';
     } else {
         require_login();
         $action = [
+            'solicitudes_acceso' => 'solicitudes_acceso', 'solicitud_acceso' => 'solicitudes_acceso',
             'dashboard' => null, 'documentos' => 'documentos', 'documento' => 'documentos',
             'documento_nuevo' => 'documento_crear', 'versiones_documento' => 'documentos',
             'auditorias' => 'auditorias', 'auditoria' => 'auditorias', 'auditoria_nueva' => 'auditoria_crear',
@@ -63,6 +75,7 @@ try {
             'evidencia_archivo' => 'evidencia_crear', 'evidencia_logica' => 'evidencia_crear',
         ][$page] ?? null;
         if ($action !== null && !can_show_action($action)) throw new ApiPageError(403, 'No tiene permiso para realizar esta operación.');
+        if (!$notFound && in_array($page, ['solicitudes_acceso', 'solicitud_acceso'], true)) require __DIR__ . '/services/access_requests_controller.php';
         if (!$notFound && $page === 'dashboard') require __DIR__ . '/services/dashboard_controller.php';
         if (!$notFound && $page === 'documentos') require __DIR__ . '/services/documentos_controller.php';
         if (!$notFound && $page === 'documento') {
@@ -114,6 +127,6 @@ try {
 }
 if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
 
-require __DIR__ . '/includes/header.php';
+require __DIR__ . ($authLayout ? '/includes/auth_header.php' : '/includes/header.php');
 require __DIR__ . '/pages/' . $route['file'];
-require __DIR__ . '/includes/footer.php';
+require __DIR__ . ($authLayout ? '/includes/auth_footer.php' : '/includes/footer.php');

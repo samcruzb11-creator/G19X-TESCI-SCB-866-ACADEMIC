@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import quote_plus
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 API_ROOT = Path(__file__).resolve().parents[2]
@@ -30,6 +30,24 @@ class Settings(BaseSettings):
     rate_limit_challenge_failures: int = Field(default=5, ge=1, le=100000)
     rate_limit_argon2_per_minute: int = Field(default=60, ge=1, le=100000)
     rate_limit_argon2_concurrency: int = Field(default=2, ge=1, le=32)
+    # 6C settings may tighten, never silently exceed the agreed safety ceilings.
+    reset_request_per_hour: int = Field(default=3, ge=1, le=3)
+    reset_request_global_per_minute: int = Field(default=20, ge=1, le=20)
+    access_request_per_day: int = Field(default=2, ge=1, le=2)
+    access_request_global_per_minute: int = Field(default=10, ge=1, le=10)
+    action_confirm_per_minute: int = Field(default=5, ge=1, le=5)
+    action_confirm_global_per_minute: int = Field(default=30, ge=1, le=30)
+    action_hash_per_minute: int = Field(default=5, ge=1, le=5)
+    smtp_host: str = ''
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: str = ''
+    smtp_password: SecretStr = SecretStr('')
+    smtp_security: str = 'starttls'
+    smtp_from_address: str = ''
+    smtp_from_name: str = 'Sistema de Trazabilidad'
+    smtp_timeout_seconds: int = Field(default=5, ge=1, le=10)
+    public_frontend_url: str = ''
+    password_reset_ttl_seconds: int = Field(default=1800, ge=60, le=1800)
     storage_path: Path = STORAGE_ROOT
 
     @field_validator("storage_path", mode="before")

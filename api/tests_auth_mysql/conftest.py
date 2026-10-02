@@ -113,7 +113,34 @@ def mysql_factory():
             assert snapshot() == baseline
             assert connection.execute(text("SELECT * FROM auth_sessions")).all() == sessions_before
             connection.commit()
-        print(f"\nMySQL {version}; temporary schema {name}; Alembic 001->002->001->002->003->002->003 OK; domain DDL/rows and existing sessions preserved")
+            # Preserve every 003 table (DDL and rows), including auth limits/sessions.
+            tables_003 = sorted(t for t in inspect(connection).get_table_names() if t != 'alembic_version')
+
+            def snapshot_003():
+                return {t: (connection.exec_driver_sql(f"SHOW CREATE TABLE `{t}`").one()[1],
+                            [tuple(row) for row in connection.exec_driver_sql(f"SELECT * FROM `{t}`")])
+                        for t in tables_003}
+
+            before_004 = snapshot_003()
+            connection.commit()
+            added = {'access_requests', 'auth_action_limits', 'auth_action_tokens', 'auth_mail_jobs'}
+            command.upgrade(cfg, '004')
+            assert snapshot_003() == before_004
+            assert added <= set(inspect(connection).get_table_names())
+            connection.execute(text("INSERT INTO access_requests (identifier,nombre,motivo,status) "
+                                    "VALUES ('sentinel-request@example.invalid','Sentinel','Migration test','PENDING')"))
+            connection.commit()
+            command.downgrade(cfg, '003')
+            assert snapshot_003() == before_004
+            assert not added.intersection(inspect(connection).get_table_names())
+            assert connection.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '003'
+            connection.commit()
+            command.upgrade(cfg, '004')
+            assert snapshot_003() == before_004
+            assert connection.execute(text('SELECT COUNT(*) FROM access_requests')).scalar_one() == 0
+            assert connection.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '004'
+            connection.commit()
+        print(f"\nMySQL {version}; temporary schema {name}; Alembic 001->002->001->002->003->002->003->004->003->004 OK; existing DDL/rows preserved")
         yield sessionmaker(bind=engine, autoflush=False, autocommit=False)
     finally:
         if engine is not None:
@@ -134,6 +161,14 @@ def auth_config(monkeypatch):
     monkeypatch.setattr(settings, "jwt_algorithm", "HS256")
     from app.services import login_protection
     monkeypatch.setattr(login_protection, "global_budget", login_protection.GlobalLoginBudget())
+    from app.services import auth_action_protection
+    monkeypatch.setattr(auth_action_protection, 'budget', auth_action_protection.ActionBudget())
+    # Even accidental sender invocation cannot open a real SMTP connection.
+    import smtplib
+    def no_smtp(*args, **kwargs):
+        raise AssertionError('Real SMTP forbidden in tests')
+    monkeypatch.setattr(smtplib, 'SMTP', no_smtp)
+    monkeypatch.setattr(smtplib, 'SMTP_SSL', no_smtp)
     # The application engine must never connect, including when testing the tool.
     from app.db.session import engine
 

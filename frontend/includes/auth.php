@@ -25,6 +25,7 @@ function can_show_action(string $action): bool
         'evidencia_crear' => ['ADMIN', 'AUDITOR_INTERNO', 'AUDITOR_EXTERNO'],
         'historial' => ['ADMIN'],
         'usuarios_catalogo' => ['ADMIN'],
+        'solicitudes_acceso' => ['ADMIN'],
     ];
     return isset($roles[$action]) && user_has_role(...$roles[$action]);
 }
@@ -32,6 +33,7 @@ function can_show_action(string $action): bool
 function navigation_items(): array
 {
     $items = ['dashboard' => 'Dashboard'];
+    if (can_show_action('solicitudes_acceso')) $items['solicitudes_acceso'] = 'Solicitudes de acceso';
     foreach (['documentos' => 'Documentos', 'auditorias' => 'Auditorías', 'evidencias' => 'Evidencias'] as $key => $label) {
         if (can_show_action($key)) $items[$key] = $label;
     }

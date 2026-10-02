@@ -23,6 +23,8 @@ $loginEmail = is_string($_POST['correo'] ?? null) ? trim($_POST['correo']) : '';
 $noticeCode = $_SESSION['auth_notice'] ?? null;
 unset($_SESSION['auth_notice']);
 $loginNotice = match ($noticeCode) {
+    'password_reset' => 'Contraseña actualizada. Por seguridad cerramos tus sesiones anteriores. Inicia sesión con tu nueva contraseña.',
+    'initial_password' => 'Contraseña establecida. Ya puedes iniciar sesión.',
     'expired' => 'La sesión expiró. Inicie sesión nuevamente.',
     'signed_out' => 'La sesión se cerró correctamente.',
     'remote_logout_unconfirmed' => 'La sesión local se cerró. No pudo confirmarse la revocación remota.',

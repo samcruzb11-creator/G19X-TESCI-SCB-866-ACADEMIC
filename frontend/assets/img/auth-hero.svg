@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="560" viewBox="0 0 720 560" fill="none">
+  <title>Documentos, versiones y evidencias conectadas</title>
+  <desc>Ilustración original del Sistema de Trazabilidad: un expediente enlazado a versiones revisadas y una auditoría.</desc>
+  <ellipse cx="364" cy="476" rx="244" ry="27" fill="#dce5e5"/>
+  <path d="M140 149H90V375H222M506 131H630V394H535M450 400V454H580" stroke="#a7babe" stroke-width="2" stroke-dasharray="5 7"/>
+  <circle cx="90" cy="149" r="5" fill="#547784"/><circle cx="630" cy="394" r="5" fill="#547784"/>
+  <rect x="202" y="80" width="302" height="366" rx="12" fill="#d5e0e2" transform="rotate(-5 202 80)"/>
+  <rect x="215" y="74" width="302" height="366" rx="12" fill="#fff" stroke="#bdcdcf" stroke-width="2"/>
+  <path d="M216 86A12 12 0 0 1 228 74H505A12 12 0 0 1 517 86V123H215Z" fill="#244b5e"/>
+  <circle cx="242" cy="99" r="4" fill="#c6d8dc"/><circle cx="258" cy="99" r="4" fill="#89a8b1"/>
+  <rect x="241" y="151" width="41" height="48" rx="5" fill="#edf2f2"/>
+  <path d="M253 163H269M253 171H269M253 179H263" stroke="#547784" stroke-width="2" stroke-linecap="round"/>
+  <rect x="296" y="157" width="153" height="9" rx="4" fill="#355a6b"/><rect x="296" y="177" width="110" height="6" rx="3" fill="#bcccd0"/>
+  <path d="M241 219H491" stroke="#e1e8e9"/>
+  <rect x="241" y="241" width="212" height="7" rx="3" fill="#c2d0d3"/><rect x="241" y="259" width="236" height="7" rx="3" fill="#d8e2e4"/><rect x="241" y="277" width="165" height="7" rx="3" fill="#d8e2e4"/>
+  <rect x="241" y="309" width="250" height="99" rx="6" fill="#f4f7f7"/><path d="M262 334H394M262 352H459M262 370H425M262 388H344" stroke="#c5d3d6" stroke-width="6" stroke-linecap="round"/>
+  <rect x="67" y="302" width="215" height="127" rx="10" fill="#fff" stroke="#bdcdcf" stroke-width="2"/>
+  <text x="87" y="331" fill="#355a6b" font-family="Segoe UI, sans-serif" font-size="11" letter-spacing="1">HISTORIAL DE VERSIONES</text>
+  <path d="M93 353V398" stroke="#aec6c9" stroke-width="2"/><circle cx="93" cy="354" r="5" fill="#547784"/><circle cx="93" cy="376" r="5" fill="#547784"/><circle cx="93" cy="398" r="5" fill="#6b9388"/>
+  <text x="112" y="358" fill="#71838b" font-family="Segoe UI, sans-serif" font-size="11">v1.0 · Documento inicial</text><text x="112" y="380" fill="#71838b" font-family="Segoe UI, sans-serif" font-size="11">v1.1 · Revisión</text><text x="112" y="402" fill="#355a6b" font-family="Segoe UI, sans-serif" font-size="11">v2.0 · Versión vigente</text>
+  <rect x="456" y="192" width="200" height="120" rx="10" fill="#fff" stroke="#bdcdcf" stroke-width="2"/>
+  <circle cx="489" cy="224" r="14" fill="#e1eee8"/><path d="M483 224L487 228L496 219" stroke="#4b7969" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="513" y="228" fill="#355a6b" font-family="Segoe UI, sans-serif" font-size="12">Evidencia vinculada</text><path d="M479 255H630M479 273H597M479 291H614" stroke="#d4dfe1" stroke-width="6" stroke-linecap="round"/>
+  <rect x="491" y="384" width="130" height="49" rx="8" fill="#244b5e"/><text x="509" y="413" fill="#fff" font-family="Segoe UI, sans-serif" font-size="12">AUDITORÍA / 01</text>
+  <path d="M149 111L158 119L173 101" stroke="#7b9d91" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

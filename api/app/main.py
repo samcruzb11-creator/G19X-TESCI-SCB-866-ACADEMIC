@@ -16,6 +16,8 @@ from app.routers.auditorias import router as auditorias_router
 from app.routers.auth import router as auth_router
 from app.core.security import validate_jwt_config
 from app.services.login_protection import AuthResponseMiddleware
+from app.routers.account_access import router as account_access_router
+from app.services.auth_action_protection import ActionAdmissionMiddleware
 
 
 @asynccontextmanager
@@ -52,6 +54,8 @@ app.include_router(evidencias_router, prefix=settings.api_v1_prefix)
 app.include_router(catalogos_router, prefix=settings.api_v1_prefix)
 app.include_router(auditorias_router, prefix=settings.api_v1_prefix)
 app.include_router(auth_router, prefix=settings.api_v1_prefix)
+app.include_router(account_access_router, prefix=settings.api_v1_prefix)
+app.add_middleware(ActionAdmissionMiddleware)
 app.add_middleware(AuthResponseMiddleware)
 
 
