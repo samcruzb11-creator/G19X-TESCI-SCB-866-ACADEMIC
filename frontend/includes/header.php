@@ -17,8 +17,8 @@
         <div class="topbar-location">
             <?php if (current_user() !== null): ?>
             <button class="menu-toggle" type="button" aria-controls="sidebar" aria-expanded="false">Menú</button>
-            <?php $parentPage = in_array($route['nav'], ['documentos', 'auditorias', 'evidencias'], true) && $page !== $route['nav'] ? $route['nav'] : 'dashboard'; ?>
-            <a class="breadcrumb-parent" href="<?= e(page_url($parentPage)) ?>"><?= e(['documentos' => 'Documentos', 'auditorias' => 'Auditorías', 'evidencias' => 'Evidencias', 'dashboard' => 'Inicio'][$parentPage]) ?></a><span class="breadcrumb-divider" aria-hidden="true">/</span>
+            <?php $parentPage = in_array($route['nav'], ['aprobaciones', 'documentos', 'auditorias', 'evidencias'], true) && $page !== $route['nav'] ? $route['nav'] : 'dashboard'; ?>
+            <a class="breadcrumb-parent" href="<?= e(page_url($parentPage)) ?>"><?= e(['aprobaciones'=>'Aprobaciones', 'documentos' => 'Documentos', 'auditorias' => 'Auditorías', 'evidencias' => 'Evidencias', 'dashboard' => 'Inicio'][$parentPage]) ?></a><span class="breadcrumb-divider" aria-hidden="true">/</span>
             <span class="header-title"><?= e($route['title']) ?></span>
             <?php else: ?><span class="header-title"><?= e(APP_NAME) ?></span><?php endif; ?>
         </div>

@@ -16,6 +16,9 @@ require_once __DIR__ . '/includes/form_fields.php';
 require_once __DIR__ . '/includes/list_filters.php';
 
 $routes = [
+    'aprobaciones' => ['title'=>'Aprobaciones','file'=>'aprobaciones.php','nav'=>'aprobaciones'],
+    'aprobacion' => ['title'=>'Detalle de aprobación','file'=>'aprobaciones.php','nav'=>'aprobaciones'],
+    'aprobacion_nueva' => ['title'=>'Nueva ronda de aprobación','file'=>'aprobaciones.php','nav'=>'aprobaciones'],
     'hallazgos' => ['title'=>'Hallazgos','file'=>'hallazgos.php','nav'=>'hallazgos'],
     'hallazgo' => ['title'=>'Detalle del hallazgo','file'=>'hallazgo.php','nav'=>'hallazgos'],
     'hallazgo_nuevo' => ['title'=>'Nuevo hallazgo','file'=>'hallazgo_form.php','nav'=>'hallazgos'],
@@ -49,7 +52,7 @@ $authLayout = $page === 'login' || in_array($page, $publicAuthPages, true);
 $notFound = !isset($routes[$page]);
 $documentId = positive_id($_GET['id'] ?? null);
 $recordId = $documentId;
-if (in_array($page, ['hallazgo','hallazgo_editar','documento', 'auditoria', 'auditoria_editar', 'evidencia', 'versiones_documento'], true) && $recordId === null) {
+if (in_array($page, ['aprobacion','hallazgo','hallazgo_editar','documento', 'auditoria', 'auditoria_editar', 'evidencia', 'versiones_documento'], true) && $recordId === null) {
     $notFound = true;
 }
 $route = $notFound ? ['title' => 'Página no encontrada', 'file' => 'pendiente.php', 'nav' => ''] : $routes[$page];
@@ -74,6 +77,7 @@ try {
     } else {
         require_login();
         $action = [
+            'aprobaciones'=>'aprobaciones', 'aprobacion'=>'aprobaciones', 'aprobacion_nueva'=>'aprobacion_gestionar',
             'hallazgos'=>'hallazgos', 'hallazgo'=>'hallazgos',
             'hallazgo_nuevo'=>'hallazgo_gestionar', 'hallazgo_editar'=>'hallazgo_gestionar',
             'solicitudes_acceso' => 'solicitudes_acceso', 'solicitud_acceso' => 'solicitudes_acceso',
@@ -85,6 +89,7 @@ try {
             'evidencia_archivo' => 'evidencia_crear', 'evidencia_logica' => 'evidencia_crear',
         ][$page] ?? null;
         if ($action !== null && !can_show_action($action)) throw new ApiPageError(403, 'No tiene permiso para realizar esta operación.');
+        if (!$notFound && in_array($page,['aprobaciones','aprobacion','aprobacion_nueva'],true)) require __DIR__.'/services/aprobaciones_controller.php';
         if (!$notFound && in_array($page,['hallazgos','hallazgo','hallazgo_nuevo','hallazgo_editar'],true)) require __DIR__.'/services/hallazgos_controller.php';
         if (!$notFound && in_array($page, ['solicitudes_acceso', 'solicitud_acceso'], true)) require __DIR__ . '/services/access_requests_controller.php';
         if (!$notFound && $page === 'dashboard') require __DIR__ . '/services/dashboard_controller.php';

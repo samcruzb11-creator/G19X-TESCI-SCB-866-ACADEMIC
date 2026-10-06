@@ -13,6 +13,7 @@ $currentVersionId = positive_id($document['version_vigente_id'] ?? null);
 </div>
 <?php if (is_string($successMessage)): ?><div class="notice notice-success" role="status"><?= e($successMessage) ?></div><?php endif; ?>
 <?php if ($downloadError !== null): ?><div class="notice notice-error" role="alert"><?= e($downloadError) ?></div><?php endif; ?>
+<section class="panel audit-list"><div class="panel-heading"><h2>Aprobaciones del documento</h2></div><?php require __DIR__.'/aprobaciones_list.php'; ?><div class="upload-body form-actions"><a class="text-link" href="<?= e(page_url('aprobaciones',['documento_id'=>$documentId])) ?>">Ver todas las rondas</a><?php if (can_show_action('aprobacion_gestionar')): ?><a class="button button-secondary" href="<?= e(page_url('aprobacion_nueva',['documento_id'=>$documentId])) ?>">Crear ronda de aprobación</a><?php endif; ?></div></section>
 <div class="document-actions"><?php if (can_show_action('version_cargar')): ?><a class="button button-primary" href="#nueva-version">Subir nueva versión</a><?php endif; ?><?php if ($currentVersionId !== null): ?><a class="button button-secondary" href="<?= e(download_url($documentId, $currentVersionId)) ?>">Descargar versión vigente</a><?php endif; ?></div>
 
 <section class="panel document-section" aria-labelledby="general-title">

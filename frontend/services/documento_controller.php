@@ -23,6 +23,8 @@ $action = is_string($_GET['accion'] ?? null) ? $_GET['accion'] : '';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $versionResult = api_get('/api/v1/documentos/' . $documentId . '/versiones');
 $versions = $versionResult['data'];
+require_once __DIR__.'/aprobacion_helpers.php';
+$approvalResult=api_get('/api/v1/aprobaciones',['documento_id'=>$documentId,'limit'=>5,'offset'=>0]);
 
 if ($action === 'descargar' && $method === 'GET') {
     $versionId = positive_id($_GET['version_id'] ?? null);

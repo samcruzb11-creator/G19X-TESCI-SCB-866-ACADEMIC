@@ -235,3 +235,6 @@ select:disabled { background: #f3f5f7; color: var(--muted); }
 
 .finding-evidence { padding-left: 20px; }
 .finding-evidence li { padding-block: 8px; overflow-wrap: anywhere; }
+.approval-assignments { margin-top: 20px; padding: 16px; border: 1px solid var(--line); }
+.approval-assignments label { display: flex; align-items: center; gap: 10px; margin-block: 12px; overflow-wrap: anywhere; }
+.approval-assignments input { flex: 0 0 auto; width: auto; }

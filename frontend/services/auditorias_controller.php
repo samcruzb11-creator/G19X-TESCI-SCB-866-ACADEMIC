@@ -94,6 +94,8 @@ if ($page === 'auditorias') {
 if ($page === 'auditoria') {
     if ($audit !== null) {
         $findingResult=api_get('/api/v1/hallazgos',['auditoria_id'=>$recordId,'limit'=>5,'offset'=>0]);
+        require_once __DIR__.'/aprobacion_helpers.php';
+        $approvalResult=api_get('/api/v1/aprobaciones',['auditoria_id'=>$recordId,'limit'=>5,'offset'=>0]);
     }
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $audit !== null) {
         if (!can_show_action('auditoria_estado')) throw new ApiPageError(403, 'No tiene permiso para cambiar el estado.');

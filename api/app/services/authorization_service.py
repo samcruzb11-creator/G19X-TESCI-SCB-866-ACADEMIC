@@ -18,7 +18,34 @@ PERMISSIONS = {
     'hallazgo.link': {'AUDITOR_INTERNO'}, 'hallazgo.history': set(),
     'historial.read': set(), 'usuarios.read': {'AUDITOR_INTERNO'},
     'areas.read': AUDITORES | {'RESPONSABLE_AREA', 'APROBADOR'},
+    'aprobacion.read': AUDITORES | {'RESPONSABLE_AREA', 'APROBADOR'},
+    'aprobacion.manage': {'AUDITOR_INTERNO'},
+    'aprobacion.decide': {'APROBADOR'},
+    'aprobacion.history': AUDITORES | {'RESPONSABLE_AREA', 'APROBADOR'},
 }
+
+
+def approval_version_scope(user):
+    """Auditors must have the EXACT version in their audit, not just its document."""
+    if user.rol in AUDITORES:
+        return exists(select(DocumentoAuditoria.id).join(Auditoria,
+            DocumentoAuditoria.auditoria_id == Auditoria.id).where(
+            DocumentoAuditoria.version_documento_id == VersionDocumento.id,
+            DocumentoAuditoria.documento_id == VersionDocumento.documento_id,
+            auditoria_scope(user)).correlate_except(DocumentoAuditoria, Auditoria))
+    return version_scope(user)
+
+
+def ronda_scope(user):
+    if user.rol == 'ADMIN':
+        return true()
+    if user.rol == 'APROBADOR':
+        return exists(select(DecisionAprobacion.id).where(
+            DecisionAprobacion.ronda_aprobacion_id == RondaAprobacion.id,
+            DecisionAprobacion.aprobador_id == user.id).correlate_except(DecisionAprobacion))
+    return exists(select(VersionDocumento.id).where(
+        VersionDocumento.id == RondaAprobacion.version_documento_id,
+        approval_version_scope(user)).correlate_except(VersionDocumento))
 
 def require_permission(user: Usuario, action: str) -> None:
     if action not in PERMISSIONS or (user.rol != 'ADMIN' and user.rol not in PERMISSIONS[action]):

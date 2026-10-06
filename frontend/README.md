@@ -203,3 +203,9 @@ Creación de evidencia con asociación atómica desde el detalle del hallazgo.
 El límite backend de evidencias es `MAX_EVIDENCE_FILE_BYTES`: 20 MiB por defecto
 (20 971 520 bytes). El formulario distingue ese límite de los límites de recepción
 PHP (`upload_max_filesize` y `post_max_size`); se aplica el más restrictivo.
+
+Fase 7C: [Aprobaciones: rondas, asignaciones, decisiones e historial](../docs/FASE_7C_APROBACIONES.md).
+Incluye navegación por rol, listados paginados, creación, detalle y decisiones
+inmutables. Auditorías y documentos muestran sus rondas. POST + CSRF para toda
+mutación; JWT solo en sesión PHP. Los catálogos de versiones/aprobadores se
+consultan por páginas de veinte, sin descargar tablas completas.

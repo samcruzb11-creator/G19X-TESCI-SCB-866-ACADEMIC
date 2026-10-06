@@ -62,3 +62,7 @@ nuevas, provisionar primero el ADMIN en 004 con la herramienta existente.
 
 Fase 7B: [hallazgos y gestión integral de evidencias](../docs/FASE_7B_HALLAZGOS_EVIDENCIAS.md).
 Reutiliza el schema **005**; no requiere migración 006.
+
+Fase 7C: [rondas y decisiones de aprobación por versión documental](../docs/FASE_7C_APROBACIONES.md).
+Reutiliza RondaAprobacion/DecisionAprobacion en **005**, sin migración adicional.
+La identidad del aprobador y el resultado se determinan en backend.

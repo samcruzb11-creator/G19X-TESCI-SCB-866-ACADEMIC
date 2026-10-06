@@ -114,6 +114,8 @@ class FakeAPI:
         if path == '/api/v1/auth/logout':
             self.valid = False
             return 204, None, {}
+        if path.startswith('/api/v1/aprobaciones'):
+            return self.answer_approvals(request)
         if path.endswith('/descargar'):
             return 200, self.content, self.file_headers
         if method == 'PATCH' and path == '/api/v1/auditorias/1':
@@ -155,6 +157,35 @@ class FakeAPI:
         if path == '/api/v1/evidencias': return 200, [self.evidence], {}
         if path.startswith('/api/v1/evidencias/'): return 200, self.evidence, {}
         return 404, {}, {}
+
+    def answer_approvals(self, request):
+        if not hasattr(self, 'approval'):
+            self.approval=dict(id=1,numero_ronda=1,estado='PENDING',documento_id=1,
+                documento_titulo='Test document',version_documento_id=1,numero_version=1,
+                solicitada_por=dict(id=7,nombre='Test User'),solicitada_en='2026-10-01T00:00:00',
+                resuelta_en=None,created_at='2026-10-01T00:00:00',updated_at='2026-10-01T00:00:00',
+                decisiones_count=1,pendientes_count=1,mi_decision=None,puede_decidir=False,puede_gestionar=True)
+            self.approval_decision=dict(id=1,ronda_aprobacion_id=1,aprobador_id=7,
+                aprobador=dict(id=7,nombre='Test User'),estado='PENDING',comentario=None,
+                asignada_en='2026-10-01T00:00:00',decidida_en=None,updated_at='2026-10-01T00:00:00')
+        path,method=request['path'],request['method']
+        if path=='/api/v1/aprobaciones/aprobadores':return 200,[dict(id=7,nombre='Test User'),dict(id=8,nombre='Other approver')],{'X-Total-Count':'2'}
+        if path=='/api/v1/aprobaciones/recursos':return 200,[dict(documento_id=1,documento_titulo='Test document',version_documento_id=1,numero_version=1)],{'X-Total-Count':'1'}
+        if path.endswith('/historial'):return 200,[],{'X-Total-Count':'0'}
+        if path.endswith('/decisiones'):return 200,[self.approval_decision],{'X-Total-Count':'1'}
+        if method=='POST':
+            if path.endswith('/iniciar'):self.approval['estado']='IN_REVIEW'
+            elif path.endswith('/cancelar'):self.approval['estado']='CANCELLED'
+            elif path.endswith('/decision'):
+                self.approval_decision.update(estado=request['json']['estado'],comentario=request['json'].get('comentario'),decidida_en='2026-10-01T00:00:01')
+                self.approval.update(estado=request['json']['estado'],pendientes_count=0,resuelta_en='2026-10-01T00:00:01')
+            self.approval['updated_at']='2026-10-01T00:00:01'
+        active=self.approval['estado'] in {'PENDING','IN_REVIEW'} and self.audit['estado'] not in {'COMPLETED','CANCELLED'}
+        self.approval['puede_gestionar']=self.role in {'ADMIN','AUDITOR_INTERNO'} and active
+        self.approval['puede_decidir']=self.role=='APROBADOR' and active and self.approval['estado']=='IN_REVIEW' and self.approval_decision['estado']=='PENDING'
+        self.approval['mi_decision']=self.approval_decision if self.role=='APROBADOR' else None
+        if path=='/api/v1/aprobaciones' and method=='GET':return 200,[self.approval],{'X-Total-Count':'1'}
+        return (201 if path=='/api/v1/aprobaciones' and method=='POST' else 200),self.approval,{}
 
 
 @pytest.fixture

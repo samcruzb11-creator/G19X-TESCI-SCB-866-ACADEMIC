@@ -14,7 +14,7 @@ function public_auth_endpoint(string $path): bool
 /** Only known API resources may be addressed; never accept a client-supplied URL. */
 function api_url(string $path, array $query = []): ?string
 {
-    if (!preg_match('~\A/api/v1/(?:auth/(?:login|me|logout|access-requests|password-reset/(?:request|confirm)|initial-password/confirm)|access-requests(?:/[1-9][0-9]*(?:/(?:approve|reject|resend))?)?|areas|usuarios|auditorias(?:/[1-9][0-9]*(?:/(?:estado|historial))?)?|hallazgos(?:/[1-9][0-9]*(?:/(?:estado|evidencias|historial))?)?|evidencias(?:/(?:archivo|logica|[1-9][0-9]*(?:/descargar)?))?|documentos(?:/[1-9][0-9]*(?:/(?:historial|versiones(?:/[1-9][0-9]*/descargar)?))?)?)\z~', $path)) {
+    if (!preg_match('~\A/api/v1/(?:auth/(?:login|me|logout|access-requests|password-reset/(?:request|confirm)|initial-password/confirm)|access-requests(?:/[1-9][0-9]*(?:/(?:approve|reject|resend))?)?|areas|usuarios|aprobaciones(?:/(?:recursos|aprobadores|[1-9][0-9]*(?:/(?:iniciar|cancelar|finalizar|decision|decisiones|historial))?))?|auditorias(?:/[1-9][0-9]*(?:/(?:estado|historial))?)?|hallazgos(?:/[1-9][0-9]*(?:/(?:estado|evidencias|historial))?)?|evidencias(?:/(?:archivo|logica|[1-9][0-9]*(?:/descargar)?))?|documentos(?:/[1-9][0-9]*(?:/(?:historial|versiones(?:/[1-9][0-9]*/descargar)?))?)?)\z~', $path)) {
         return null;
     }
     $url = rtrim(API_BASE_URL, '/') . $path;
@@ -46,7 +46,7 @@ function api_request(string $method, string $path, array $query = [], ?array $mu
     }
     if ($method === 'PATCH' && (!preg_match('~\A/api/v1/(?:auditorias|hallazgos)/[1-9][0-9]*\z~', $path) || $json === null || $multipart !== null)) return api_failure();
     if ($method === 'POST' && !(
-        ((public_auth_endpoint($path) || preg_match('~\A/api/v1/access-requests/[1-9][0-9]*/(?:approve|reject|resend)\z~', $path) || preg_match('~\A/api/v1/(?:auditorias/[1-9][0-9]*/estado|hallazgos/[1-9][0-9]*/(?:estado|evidencias))\z~', $path)) && $json !== null && $multipart === null)
+        ((preg_match('~\A/api/v1/aprobaciones(?:/[1-9][0-9]*/(?:iniciar|cancelar|finalizar|decision))?\z~', $path) || public_auth_endpoint($path) || preg_match('~\A/api/v1/access-requests/[1-9][0-9]*/(?:approve|reject|resend)\z~', $path) || preg_match('~\A/api/v1/(?:auditorias/[1-9][0-9]*/estado|hallazgos/[1-9][0-9]*/(?:estado|evidencias))\z~', $path)) && $json !== null && $multipart === null)
         ||
         (in_array($path, ['/api/v1/auth/login', '/api/v1/documentos', '/api/v1/auditorias', '/api/v1/hallazgos', '/api/v1/evidencias/logica'], true) && $json !== null && $multipart === null)
         || ($path === '/api/v1/auth/logout' && $multipart === null && $json === null)
