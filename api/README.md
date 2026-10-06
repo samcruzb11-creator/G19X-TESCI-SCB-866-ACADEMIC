@@ -50,3 +50,8 @@ antes de readmitir la operación. Los fixtures bloquean conexiones a la BD de la
 aplicación; toda regresión MySQL, incluida 6A, usa un esquema temporal aleatorio.
 
 La ruta `GET /` devuelve el estado básico de la API. La documentación interactiva está en <http://127.0.0.1:8000/docs>.
+
+Para una instalación local en 004 sin ADMIN activo, consulte el
+[bootstrap inicial del primer ADMIN](../docs/FASE_6D_1_BOOTSTRAP_ADMIN.md).
+La CLI solicita credenciales interactivas ocultas, fija el rol ADMIN y se
+deshabilita lógicamente al existir un ADMIN activo; no modifica otros usuarios.
