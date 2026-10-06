@@ -19,6 +19,7 @@ if ($page === 'logout') {
 }
 
 $loginError = null;
+$turnstileDisplay = turnstile_begin('login', $method);
 $loginEmail = is_string($_POST['correo'] ?? null) ? trim($_POST['correo']) : '';
 $noticeCode = $_SESSION['auth_notice'] ?? null;
 unset($_SESSION['auth_notice']);
@@ -38,7 +39,9 @@ if ($method === 'POST') {
         http_response_code(422);
         $loginError = 'Introduce el correo y la contraseña.';
     } else {
-        $result = api_post_json('/api/v1/auth/login', ['correo' => $loginEmail, 'password' => $_POST['password']]);
+        $result = api_post_json('/api/v1/auth/login', turnstile_transport(['correo' => $loginEmail, 'password' => $_POST['password']]));
+        unset($_POST['password']);
+        $turnstileDisplay = turnstile_update($result, 'login', $turnstileDisplay);
         if ($result['ok'] && is_string($result['data']['access_token'] ?? null)
             && $result['data']['access_token'] !== '' && ($result['data']['token_type'] ?? null) === 'bearer'
             && is_int($result['data']['expires_in'] ?? null) && $result['data']['expires_in'] > 0) {
@@ -68,6 +71,8 @@ if ($method === 'POST') {
             }
             $loginError = match ($result['status']) {
                 401 => 'Credenciales inválidas.',
+                428 => 'Completa la verificación para continuar.',
+                503 => 'No podemos completar la verificación en este momento. Intenta más tarde.',
                 429 => 'Demasiados intentos. Intente nuevamente más tarde.',
                 default => 'No fue posible iniciar sesión. Intenta nuevamente.',
             };
@@ -77,4 +82,5 @@ if ($method === 'POST') {
     header('Allow: GET, POST');
     throw new ApiPageError(405, 'Método no permitido.');
 }
+$turnstileWidget = turnstile_widget('login', $turnstileDisplay);
 $csrfToken = csrf_token();

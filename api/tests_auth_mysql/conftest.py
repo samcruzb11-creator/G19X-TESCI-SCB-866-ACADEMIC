@@ -157,6 +157,7 @@ def mysql_factory():
 
 @pytest.fixture(autouse=True)
 def auth_config(monkeypatch):
+    monkeypatch.setattr(settings, 'turnstile_mode', 'disabled')
     monkeypatch.setattr(settings, "jwt_secret_key", secrets.token_urlsafe(64))
     monkeypatch.setattr(settings, "jwt_algorithm", "HS256")
     from app.services import login_protection
@@ -169,6 +170,10 @@ def auth_config(monkeypatch):
         raise AssertionError('Real SMTP forbidden in tests')
     monkeypatch.setattr(smtplib, 'SMTP', no_smtp)
     monkeypatch.setattr(smtplib, 'SMTP_SSL', no_smtp)
+    from app.services import turnstile
+    def no_siteverify(*args, **kwargs):
+        raise AssertionError('Real Siteverify forbidden in tests')
+    monkeypatch.setattr(turnstile, '_post', no_siteverify)
     # The application engine must never connect, including when testing the tool.
     from app.db.session import engine
 

@@ -7,6 +7,10 @@
     <link rel="stylesheet" href="assets/css/estilos.css">
     <link rel="stylesheet" href="assets/css/auth.css">
     <?php if (in_array($page, ['restablecer_password','establecer_password'], true)): ?><script src="assets/js/password_reset.js" defer></script><?php endif; ?>
+    <?php if ($turnstileWidget !== null): ?>
+    <script src="assets/js/turnstile.js" defer></script>
+    <script id="turnstile-api" src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
+    <?php endif; ?>
 </head><body class="auth-page">
 <a class="skip-link" href="#contenido">Ir al contenido</a>
 <header class="auth-brand"><a href="<?= e(page_url('login')) ?>"><span class="auth-mark" aria-hidden="true">ST</span><span>Sistema de Trazabilidad<small>GESTIÓN DOCUMENTAL Y AUDITORÍAS</small></span></a></header>

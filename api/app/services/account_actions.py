@@ -44,7 +44,7 @@ def invalid():
 
 
 def submit_access(db, payload):
-    protection.admit(db, 'ACCESS_REQUEST', payload.correo)
+    protection.adaptive_admit(db, 'ACCESS_REQUEST', payload.correo, payload.turnstile_token)
     try:
         stmt = insert(AccessRequest).values(identifier=payload.correo, nombre=payload.nombre,
             motivo=payload.motivo, status='PENDING', created_at=now_utc())
@@ -55,8 +55,8 @@ def submit_access(db, payload):
         raise
 
 
-def request_reset(db, identifier):
-    protection.admit(db, 'RESET_REQUEST', identifier)
+def request_reset(db, identifier, turnstile_token=None):
+    protection.adaptive_admit(db, 'RESET_REQUEST', identifier, turnstile_token)
     # This is lookup work, NOT outbound mail. No user lookup, recipient or token.
     try:
         db.add(AuthMailJob(kind='LOOKUP_RESET', identifier=identifier))

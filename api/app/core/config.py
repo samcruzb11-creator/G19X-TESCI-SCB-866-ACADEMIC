@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 from urllib.parse import quote_plus
 
 from pydantic import Field, SecretStr, field_validator
@@ -30,6 +31,13 @@ class Settings(BaseSettings):
     rate_limit_challenge_failures: int = Field(default=5, ge=1, le=100000)
     rate_limit_argon2_per_minute: int = Field(default=60, ge=1, le=100000)
     rate_limit_argon2_concurrency: int = Field(default=2, ge=1, le=32)
+    turnstile_mode: Literal["disabled", "test", "enabled"] = "disabled"
+    turnstile_secret_key: SecretStr = Field(default=SecretStr(""), repr=False)
+    # Comma-separated EXACT frontend hostnames; never request/proxy-derived.
+    turnstile_expected_hostnames: str = ""
+    turnstile_verify_timeout_seconds: float = Field(default=5, ge=0.1, le=10)
+    turnstile_verify_global_per_minute: int = Field(default=60, ge=1, le=100000)
+    turnstile_verify_concurrency: int = Field(default=4, ge=1, le=32)
     # 6C settings may tighten, never silently exceed the agreed safety ceilings.
     reset_request_per_hour: int = Field(default=3, ge=1, le=3)
     reset_request_global_per_minute: int = Field(default=20, ge=1, le=20)

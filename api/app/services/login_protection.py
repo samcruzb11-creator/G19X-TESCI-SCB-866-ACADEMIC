@@ -4,6 +4,7 @@ No user lookup, origin trust, credentials, sleeps or external calls here.
 MySQL collation is authoritative for identifier equivalence.
 """
 from collections import deque
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from math import ceil
@@ -18,12 +19,14 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.security import normalize_email
 from app.models.auth import AuthLoginLimit
+from app.services import turnstile
 
 MESSAGE = "Demasiados intentos. Intente nuevamente más tarde."
 RETENTION_SECONDS = 1200
 
 
 def limited(seconds=1):
+    logging.getLogger(__name__).info('event=auth_hard_rate_limit action=login')
     return HTTPException(429, detail={"code": "login_rate_limited", "message": MESSAGE},
                          headers={"Retry-After": str(max(1, ceil(seconds)))})
 
@@ -40,6 +43,7 @@ class GlobalLoginBudget:
         self.requests = deque()
         self.verifications = deque()
         self.active = 0
+        self.pending = set()
 
     def _budget(self, queue, limit, now):
         while queue and queue[0] <= now - 60:
@@ -75,6 +79,26 @@ class GlobalLoginBudget:
         with self.lock:
             self.active -= 1
 
+    def challenge_required(self):
+        # Inspect the existing request window; never append or refresh on a check.
+        with self.lock:
+            now = self.clock()
+            while self.requests and self.requests[0] <= now - 60:
+                self.requests.popleft()
+            return len(self.requests) >= ceil(settings.rate_limit_login_requests_per_minute / 2)
+
+    def pending_count(self, identifier, window):
+        with self.lock:
+            return sum(r.identifier == identifier and r.window == window for r in self.pending)
+
+    def track(self, reservation):
+        with self.lock:
+            self.pending.add(reservation)
+
+    def finish(self, reservation):
+        with self.lock:
+            self.pending.discard(reservation)
+
 
 global_budget = GlobalLoginBudget()
 
@@ -83,9 +107,10 @@ global_budget = GlobalLoginBudget()
 class Reservation:
     identifier: str
     window: datetime
+    attempt: object = None
 
 
-def reserve(db: Session, identifier: str) -> Reservation:
+def reserve(db: Session, identifier: str, *, challenge_verified=False) -> Reservation:
     """Commit a reservation only if identifier AND global Argon2 budgets admit it.
 
     Acquiring the in-memory slot inside this short transaction avoids refreshing
@@ -94,6 +119,7 @@ def reserve(db: Session, identifier: str) -> Reservation:
     """
     identifier = normalize_email(identifier)
     acquired = False
+    reservation = None
     try:
         now = db.scalar(select(func.utc_timestamp(6)))
         stmt = insert(AuthLoginLimit).values(identifier=identifier, request_window=now,
@@ -115,21 +141,45 @@ def reserve(db: Session, identifier: str) -> Reservation:
             waits.append((row.failure_window + timedelta(seconds=settings.rate_limit_failure_window_seconds) - now).total_seconds())
         if waits:
             raise limited(max(waits))
+        adaptive = turnstile.enabled()
+        if adaptive and not challenge_verified:
+            # The stored spelling comes from MySQL's collation-equivalent row.
+            # Pending Argon2 attempts are hard reservations, not real failures.
+            failures = row.failure_count - global_budget.pending_count(row.identifier, row.failure_window)
+            if failures >= 3 or global_budget.challenge_required():
+                raise turnstile.challenge('login')
         global_budget.acquire_argon2()
         acquired = True
         row.request_count += 1
         row.failure_count += 1
         row.expires_at = now + timedelta(seconds=RETENTION_SECONDS)
-        reservation = Reservation(identifier, row.failure_window)
+        reservation = Reservation(row.identifier if adaptive else identifier, row.failure_window,
+                                  object() if adaptive else None)
+        if adaptive:
+            # Register before committing (and releasing the row lock). Observers
+            # cannot count this reservation as a completed credential failure.
+            global_budget.track(reservation)
         db.commit()
         return reservation
     except Exception:
         try:
             db.rollback()
         finally:
+            global_budget.finish(reservation)
             if acquired:
                 global_budget.release_argon2()
         raise
+
+
+def adaptive_reserve(db: Session, identifier: str, token=None) -> Reservation:
+    try:
+        return reserve(db, identifier)
+    except turnstile.ChallengeRequired:
+        # reserve rolled back: no SQL transaction/row lock during the HTTP call.
+        turnstile.verify(token.get_secret_value() if token is not None else None, 'login')
+    # Recheck current hard state under the same authoritative row lock. This is
+    # one admitted request, not a second request/global-budget charge.
+    return reserve(db, identifier, challenge_verified=True)
 
 
 def release_reservation(db: Session, reservation: Reservation):
@@ -140,9 +190,15 @@ def release_reservation(db: Session, reservation: Reservation):
             AuthLoginLimit.failure_window == reservation.window,
             AuthLoginLimit.failure_count > 0,
         ).values(failure_count=AuthLoginLimit.failure_count - 1))
+        # UPDATE holds the row lock: removing the pending marker here cannot
+        # expose an undercount to another admission before the commit.
+        global_budget.finish(reservation)
         db.commit()
     except Exception:
-        db.rollback()
+        try:
+            db.rollback()
+        finally:
+            global_budget.finish(reservation)
         raise
 
 

@@ -9,6 +9,7 @@
         <div class="form-field"><label for="correo">Correo electrónico</label><input type="email" id="correo" name="correo" autocomplete="username" maxlength="320" value="<?= e($loginEmail) ?>" placeholder="nombre@organizacion.com" required></div>
         <div class="form-field"><label for="password">Contraseña</label><input type="password" id="password" name="password" autocomplete="current-password" required></div>
         <p class="auth-recovery">¿Olvidaste tu contraseña? <a href="<?= e(page_url('recuperar_password')) ?>">Restablécela aquí</a></p>
+        <?php require __DIR__ . '/../includes/turnstile_widget.php'; ?>
         <button type="submit" class="button button-primary">Iniciar sesión <span aria-hidden="true">→</span></button>
     </form>
 <p class="auth-access">¿No tienes una cuenta? <a href="<?= e(page_url('solicitar_acceso')) ?>">Solicita acceso</a></p>

@@ -15,6 +15,7 @@
     <div class="form-field"><label for="password">Nueva contraseña</label><input type="password" id="password" name="password" autocomplete="new-password" minlength="12" maxlength="1024" required></div>
     <div class="form-field"><label for="confirmation">Repite la contraseña</label><input type="password" id="confirmation" name="confirmation" autocomplete="new-password" minlength="12" maxlength="1024" required></div>
     <?php endif; ?>
+    <?php if (!$isPasswordForm) require __DIR__ . '/../includes/turnstile_widget.php'; ?>
     <button class="button button-primary" type="submit"><?= $isPasswordForm ? 'Guardar contraseña' : ($page === 'solicitar_acceso' ? 'Enviar solicitud' : 'Solicitar instrucciones') ?></button>
 </form>
 <?php endif; ?>

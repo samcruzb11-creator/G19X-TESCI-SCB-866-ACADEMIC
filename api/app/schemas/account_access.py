@@ -28,6 +28,7 @@ def valid_address(value: str) -> str:
 class EmailRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     correo: str = Field(min_length=3, max_length=320)
+    turnstile_token: SecretStr | None = Field(default=None, max_length=2048)
     normalize = field_validator('correo')(valid_address)
 
 

@@ -27,6 +27,12 @@
 .auth-hero img { width: 115%; max-width: 760px; height: auto; margin: 10px 0 0 -7%; }
 .auth-hero-footer { display: flex; justify-content: space-between; gap: 12px; padding-top: 20px; border-top: 1px solid #cbd6d8; font-size: 9px; letter-spacing: .6px; color: #4c6873; }
 .auth-page .notice { margin: 0 0 22px; }
+.auth-verification { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 6px; background: #f8faf9; }
+.auth-verification > p { font-size: 12px; line-height: 1.5; color: var(--muted); margin: 0 0 12px; }
+#turnstile-widget { width: 100%; min-width: 0; }
+#verification-status { margin: 12px 0 0; font-size: 11px; }
+.auth-verification .verification-retry { margin-top: 12px; font-size: 12px; min-height: 40px; }
+.auth-verification .verification-retry[hidden] { display: none; }
 @media (max-width: 900px) {
     .auth-layout { grid-template-columns: minmax(0, 1fr); min-height: calc(100svh - 84px); }
     .auth-hero { display: none; }

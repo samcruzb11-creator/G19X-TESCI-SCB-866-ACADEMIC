@@ -1,5 +1,6 @@
 """Separate 6C budgets. Global admission assumes one API process, as in 6B.4A."""
 from collections import defaultdict, deque
+import logging
 from threading import Lock
 from time import monotonic
 from datetime import timedelta
@@ -9,9 +10,13 @@ from sqlalchemy import select, func
 from sqlalchemy.dialects.mysql import insert
 from app.core.config import settings
 from app.models.account_access import AuthActionLimit
+from app.services import turnstile
+
+PUBLIC_CHALLENGES = {'ACCESS_REQUEST': 'access_request', 'RESET_REQUEST': 'password_reset_request'}
 
 
 def limited(seconds=1):
+    logging.getLogger(__name__).info('event=auth_hard_rate_limit scope=account_action')
     return HTTPException(429, detail={'code': 'auth_action_rate_limited',
         'message': 'Demasiados intentos. Intente nuevamente más tarde.'},
         headers={'Retry-After': str(max(1, ceil(seconds)))})
@@ -46,11 +51,21 @@ class ActionBudget:
         with self.lock:
             self.hash_active = False
 
+    def challenge_required(self, action):
+        maximum = {'ACCESS_REQUEST': settings.access_request_global_per_minute,
+                   'RESET_REQUEST': settings.reset_request_global_per_minute}[action]
+        with self.lock:
+            now = self.clock()
+            window = self.windows[action]
+            while window and window[0] <= now - 60:
+                window.popleft()
+            return len(window) >= ceil(maximum / 2)
+
 
 budget = ActionBudget()
 
 
-def admit(db, action, identifier, *, commit=True):
+def admit(db, action, identifier, *, commit=True, challenge_verified=False):
     maximum, duration = {
         'RESET_REQUEST': (settings.reset_request_per_hour, 3600),
         'ACCESS_REQUEST': (settings.access_request_per_day, 86400),
@@ -70,6 +85,9 @@ def admit(db, action, identifier, *, commit=True):
             row.window_start, row.count = now, 0
         if row.count >= maximum:
             raise limited((row.window_start + timedelta(seconds=duration) - now).total_seconds())
+        if (action in PUBLIC_CHALLENGES and turnstile.enabled() and not challenge_verified
+                and (row.count >= 1 or budget.challenge_required(action))):
+            raise turnstile.challenge(PUBLIC_CHALLENGES[action])
         row.count += 1
         row.expires_at = row.window_start + timedelta(seconds=duration)
         if commit:
@@ -79,6 +97,16 @@ def admit(db, action, identifier, *, commit=True):
     except Exception:
         db.rollback()
         raise
+
+
+def adaptive_admit(db, action, identifier, token=None):
+    """One external verification at most, between two short DB admissions."""
+    try:
+        return admit(db, action, identifier)
+    except turnstile.ChallengeRequired:
+        # admit's rollback also undoes a new bucket/expired window reset.
+        turnstile.verify(token.get_secret_value() if token is not None else None, PUBLIC_CHALLENGES[action])
+    return admit(db, action, identifier, challenge_verified=True)
 
 
 class ActionAdmissionMiddleware:

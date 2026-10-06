@@ -47,7 +47,7 @@ def request_access(payload: AccessRequestCreate, db: Session = Depends(get_db)):
 
 @router.post('/auth/password-reset/request', status_code=202)
 def request_reset(payload: EmailRequest, db: Session = Depends(get_db)):
-    actions.request_reset(db, payload.correo)
+    actions.request_reset(db, payload.correo, payload.turnstile_token)
     return {'message': actions.RESET_MESSAGE}
 
 

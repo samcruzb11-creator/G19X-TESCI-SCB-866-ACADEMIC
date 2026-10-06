@@ -3,7 +3,7 @@
 PHP 8.1 o superior con cURL, mbstring y fileinfo. No requiere Composer ni frameworks.
 El frontend consume FastAPI; no accede directamente a MySQL.
 
-6B.4A: el entorno del proceso PHP admite `AUTH_API_TIMEOUT_SECONDS=10` para
+6B.4A/6B.4B: el entorno del proceso PHP admite `AUTH_API_TIMEOUT_SECONDS=15` para
 login/me/logout y `FRONTEND_COOKIE_SECURE=auto|always` (default `auto`). Valores
 inválidos fallan de forma segura; no se leen de encabezados HTTP. `always` es solo
 para sitios exclusivamente HTTPS; `auto` conserva HTTP local. No crear un `.env`
@@ -152,3 +152,44 @@ local y lo envían por POST. PHP no conserva códigos ni contraseñas en sesión
 cada operación. El JWT continúa exclusivamente en la sesión del servidor PHP.
 
 Diseño, operación, configuración y validación: [FASE_6C_ACCESO_RECUPERACION.md](../docs/FASE_6C_ACCESO_RECUPERACION.md).
+
+## Fase 6B.4B: verificación adaptativa
+
+Configurar `TURNSTILE_SITE_KEY` en el entorno del proceso PHP (clave **pública**;
+no crear `.env` bajo el web root). La clave privada vive exclusivamente en
+FastAPI. El widget aparece solo después de un HTTP 428 válido del backend en
+login, solicitud de acceso o solicitud de recuperación. PHP transporta
+`turnstile_token` por POST; la autoridad de admisión y Siteverify es FastAPI.
+Una sitekey ausente o mal formada ante un challenge responde 503 seguro.
+
+La sesión conserva únicamente un booleano de presentación por acción durante
+la interacción: nunca el token Turnstile, contraseña o datos del formulario.
+Un GET nuevo, operación exitosa o hard limit 429 limpia esa indicación; FastAPI
+vuelve a decidir en cada POST. Un challenge exige escribir la contraseña otra
+vez. Expiración/error/timeout requieren reinicio manual del widget, sin loops.
+Sin JavaScript, el backend sigue rechazando operaciones que requieren challenge;
+el formulario explica que debe activarse para completar esa verificación.
+
+Solo una respuesta con widget amplía `script-src` y `frame-src` al origen exacto
+`https://challenges.cloudflare.com`. El script oficial se carga directamente
+desde `https://challenges.cloudflare.com/turnstile/v0/api.js`; la aplicación
+renderiza mediante `turnstile.render` sobre un contenedor sin `cf-turnstile`.
+En 320 px se utiliza tamaño compacto para respetar el ancho del formulario.
+Las páginas `establecer_password` y `restablecer_password` jamás cargan ese
+script, iframe u otro recurso externo, incluso ante un error de backend.
+Conservan fragmentos, limpieza de URL/DOM, `no-store` y `no-referrer` de 6C.
+
+El timeout PHP predeterminado sube a 15 s para cubrir dos intentos Siteverify de
+5 s y el procesamiento local. Si se cambia el timeout backend, ajustar también
+`AUTH_API_TIMEOUT_SECONDS`; un timeout PHP no cancela una operación admitida.
+
+Pruebas normales offline con doble HTTP de FastAPI:
+`api/venv/Scripts/python.exe -m pytest frontend/tests -q`.
+Para Chrome aislado, establecer `AUTH_BROWSER_TEST=1`; el script oficial se
+intercepta mediante DevTools con un stub de prueba, sin conexión a Cloudflare.
+La suite incluye JavaScript desactivado, rechazo de challenge, caducidad/reset,
+limpieza pagehide/pageshow, teclado y anchuras 1440/390/320 px. Si el sandbox de
+Windows impide iniciar los procesos internos de Chrome, ejecutar las mismas
+pruebas con autorización fuera del sandbox, manteniendo el perfil temporal.
+No usar ese stub en el despliegue. Configuración y operación completas:
+[FASE_6B_4B_TURNSTILE.md](../docs/FASE_6B_4B_TURNSTILE.md).

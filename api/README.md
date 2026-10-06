@@ -29,11 +29,24 @@ uvicorn app.main:app --reload
 Hardening local 6B.4A: [operación, límites, migración 003 y pruning](../docs/FASE_6B_4A_AUTH_HARDENING.md).
 El presupuesto global requiere **un único proceso FastAPI**. `--reload` es solo desarrollo;
 reinicia el estado global en memoria, pero los buckets MySQL persisten. Desplegar 003 antes
-del código nuevo. No incluye integración Turnstile.
+del código nuevo.
 
 Fase 6C: [solicitudes de acceso, recuperación y cola de correo](../docs/FASE_6C_ACCESO_RECUPERACION.md).
 El código 6C requiere también la revisión **004**, además de 002/003. Las pruebas
 crean esquemas temporales aleatorios; no aplican migraciones a la BD de trabajo.
 El correo se procesa mediante CLI Python y configuración SMTP privada, sin SMTP en PHP.
+
+Fase 6B.4B: [Turnstile adaptativo, configuración y pruebas](../docs/FASE_6B_4B_TURNSTILE.md).
+Con `TURNSTILE_MODE=enabled`, FastAPI decide y verifica los desafíos de login,
+solicitud de acceso y solicitud de recuperación. Requiere secreto privado y
+allowlist exacta de hostnames; PHP recibe únicamente la sitekey pública.
+`disabled` es el valor local inicial explícito de `.env.example`: conserva todos
+los límites anteriores pero no ofrece la segunda capa anti-bot. Cambiarlo exige
+reiniciar. No hay fallback automático ante caídas de Cloudflare.
+No requiere migración 005. Se conserva el requisito de un solo proceso API.
+Las pruebas normales usan doubles de Siteverify, nunca Internet ni SMTP real.
+Siteverify limita la lectura a 16 KiB, rechaza JSON ambiguo y valida el timestamp
+antes de readmitir la operación. Los fixtures bloquean conexiones a la BD de la
+aplicación; toda regresión MySQL, incluida 6A, usa un esquema temporal aleatorio.
 
 La ruta `GET /` devuelve el estado básico de la API. La documentación interactiva está en <http://127.0.0.1:8000/docs>.

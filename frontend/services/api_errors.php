@@ -34,6 +34,11 @@ function api_error_response(int $status, string $body): array
         default => $result['message'],
     };
     $result['error_fields'] = [];
+    if ($status === 428 && is_array($error) && ($error['challenge_required'] ?? null) === true
+        && in_array($error['challenge_action'] ?? null, ['login', 'access_request', 'password_reset_request'], true)) {
+        $result['challenge_required'] = true;
+        $result['challenge_action'] = $error['challenge_action'];
+    }
     if (($status === 409 && $detail === 'El codigo de auditoria ya existe')
         || (in_array($status, [400, 409], true) && is_string($detail) && str_starts_with($detail, 'Ya existe un documento con el código '))) {
         $result['error_code'] = 'duplicate_code';

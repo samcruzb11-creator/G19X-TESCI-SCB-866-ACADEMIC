@@ -8,6 +8,7 @@ require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/session.php';
 require_once __DIR__ . '/services/api_client.php';
+require_once __DIR__ . '/services/turnstile.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/services/download_response.php';
 require_once __DIR__ . '/services/registro_helpers.php';
@@ -55,6 +56,7 @@ header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');
 if ($authLayout) header('Referrer-Policy: no-referrer');
 header("Content-Security-Policy: default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+$turnstileWidget = null;
 
 $sessionReady = frontend_session_start();
 try {
@@ -126,6 +128,15 @@ try {
     $route = ['title' => 'Información no disponible', 'file' => 'error.php', 'nav' => ''];
 }
 if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+
+// Widen only the three public forms, only after FastAPI required a challenge.
+// Password/initial confirmation pages never enter this branch, including errors.
+if ($turnstileWidget !== null && turnstile_action_for_page($page) !== null
+    && in_array($route['file'], ['login.php', 'public_auth.php'], true)) {
+    header("Content-Security-Policy: default-src 'self'; style-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; img-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+} else {
+    $turnstileWidget = null;
+}
 
 require __DIR__ . ($authLayout ? '/includes/auth_header.php' : '/includes/header.php');
 require __DIR__ . '/pages/' . $route['file'];

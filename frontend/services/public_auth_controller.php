@@ -7,6 +7,8 @@ $isPasswordForm = in_array($page, ['restablecer_password', 'establecer_password'
 $publicValues = [];
 foreach (['nombre', 'correo', 'motivo'] as $field) $publicValues[$field] = is_string($_POST[$field] ?? null) ? trim($_POST[$field]) : '';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$turnstileAction = turnstile_action_for_page($page);
+$turnstileDisplay = $turnstileAction !== null ? turnstile_begin($turnstileAction, $method) : false;
 if ($method === 'POST') {
     if (!csrf_valid($_POST['csrf_token'] ?? null)) throw new ApiPageError(403, 'No fue posible validar el formulario. Recarga la página.');
     $paths = ['solicitar_acceso' => '/api/v1/auth/access-requests', 'recuperar_password' => '/api/v1/auth/password-reset/request',
@@ -22,9 +24,11 @@ if ($method === 'POST') {
         $payload = ['token' => $token, 'password' => $password];
     } else {
         $payload = $page === 'solicitar_acceso' ? $publicValues : ['correo' => $publicValues['correo']];
+        $payload = turnstile_transport($payload);
     }
     if ($publicError === null) {
         $result = api_post_json($paths[$page], $payload);
+        if ($turnstileAction !== null) $turnstileDisplay = turnstile_update($result, $turnstileAction, $turnstileDisplay);
         if ($result['ok']) {
             if ($isPasswordForm) {
                 clear_authentication($page === 'restablecer_password' ? 'password_reset' : 'initial_password');
@@ -41,6 +45,8 @@ if ($method === 'POST') {
                 400 => 'Este enlace no es válido o ya no está disponible. Solicita uno nuevo.',
                 422 => $isPasswordForm ? 'Revisa los campos. La contraseña debe contener entre 12 y 1024 caracteres.' : 'Revisa el correo y los campos de la solicitud.',
                 429 => 'Demasiados intentos. Intente nuevamente más tarde.',
+                428 => 'Completa la verificación para continuar.',
+                503 => 'No podemos completar la verificación en este momento. Intenta más tarde.',
                 default => 'No podemos procesar la solicitud en este momento. Intenta más tarde.',
             };
         }
@@ -49,4 +55,5 @@ if ($method === 'POST') {
 } elseif ($method !== 'GET') {
     throw new ApiPageError(405, 'Método no permitido.');
 }
+if ($turnstileAction !== null) $turnstileWidget = turnstile_widget($turnstileAction, $turnstileDisplay);
 $csrfToken = csrf_token();

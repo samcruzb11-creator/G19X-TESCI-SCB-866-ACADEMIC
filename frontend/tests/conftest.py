@@ -179,3 +179,10 @@ def login(client, role=None, state=None):
     if role is not None: state.role = role
     page = client.get('/index.php?pagina=login')
     return client.post('/index.php?pagina=login',data={'correo':'user@example.invalid','password':'correct','csrf_token':csrf(page)})
+
+
+@pytest.fixture
+def turnstile_frontend(monkeypatch, request):
+    # Official public test sitekey; every actual widget script is stubbed offline.
+    monkeypatch.setenv('TURNSTILE_SITE_KEY', '1x00000000000000000000AA')
+    return request.getfixturevalue('frontend')

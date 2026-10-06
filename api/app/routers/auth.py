@@ -18,7 +18,7 @@ router = APIRouter(prefix="/auth", tags=["autenticacion"])
 
 @router.post("/login", response_model=TokenResponse, dependencies=[Depends(authentication_ready)])
 def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
-    reservation = login_protection.reserve(db, payload.correo)
+    reservation = login_protection.adaptive_reserve(db, payload.correo, payload.turnstile_token)
     credential_failure = False
     try:
         user = db.scalar(select(Usuario).where(Usuario.correo_normalizado == normalize_email(payload.correo)))
@@ -54,6 +54,8 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
         login_protection.global_budget.release_argon2()
         if not credential_failure:
             login_protection.release_reservation(db, reservation)
+        else:
+            login_protection.global_budget.finish(reservation)
     return TokenResponse(access_token=token)
 
 

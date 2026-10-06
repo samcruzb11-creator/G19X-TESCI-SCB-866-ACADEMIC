@@ -213,7 +213,7 @@ def test_public_reset_is_queued_even_without_smtp_configuration(monkeypatch):
         with TestClient(app) as client:
             response = client.post('/api/v1/auth/password-reset/request', json={'correo':'absent@example.invalid'})
         assert response.status_code == 202
-        queued.assert_called_once_with(None, 'absent@example.invalid')
+        queued.assert_called_once_with(None, 'absent@example.invalid', None)
     finally:
         app.dependency_overrides.clear()
 

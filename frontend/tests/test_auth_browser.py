@@ -13,7 +13,7 @@ from websockets.sync.client import connect
 
 
 @contextmanager
-def chromium(tmp_path):
+def chromium(tmp_path, request_handler=None, events=None):
     if os.environ.get('AUTH_BROWSER_TEST') != '1':
         pytest.skip('Opt in with AUTH_BROWSER_TEST=1 for isolated headless Chrome')
     executable = Path(os.environ.get('CHROME_TEST_BINARY', r'C:\Program Files\Google\Chrome\Application\chrome.exe'))
@@ -40,10 +40,18 @@ def chromium(tmp_path):
                 def command(method, **params):
                     nonlocal sequence
                     sequence += 1
-                    ws.send(json.dumps(dict(id=sequence, method=method, params=params)))
+                    command_id = sequence
+                    ws.send(json.dumps(dict(id=command_id, method=method, params=params)))
                     while True:
                         response = json.loads(ws.recv(timeout=15))
-                        if response.get('id') == sequence:
+                        if response.get('method') and events is not None:
+                            events.append(response)
+                        if response.get('method') == 'Fetch.requestPaused' and request_handler is not None:
+                            fulfillment = request_handler(response['params'])
+                            sequence += 1
+                            ws.send(json.dumps(dict(id=sequence, method='Fetch.fulfillRequest', params={
+                                'requestId':response['params']['requestId'], **fulfillment})))
+                        if response.get('id') == command_id:
                             assert 'error' not in response, response
                             return response.get('result', {})
                 command('Page.enable')

@@ -18,6 +18,7 @@ from app.core.security import validate_jwt_config
 from app.services.login_protection import AuthResponseMiddleware
 from app.routers.account_access import router as account_access_router
 from app.services.auth_action_protection import ActionAdmissionMiddleware
+from app.services import turnstile
 
 
 @asynccontextmanager
@@ -25,6 +26,7 @@ async def lifespan(application: FastAPI):
     # Imports, Alembic and credential tooling remain usable without a JWT secret;
     # serving HTTP requires valid cryptographic configuration before startup.
     validate_jwt_config()
+    turnstile.validate_turnstile_config()
     yield
 
 # Filesystem/driver failures must use the sanitized handler even in local mode.
@@ -57,6 +59,12 @@ app.include_router(auth_router, prefix=settings.api_v1_prefix)
 app.include_router(account_access_router, prefix=settings.api_v1_prefix)
 app.add_middleware(ActionAdmissionMiddleware)
 app.add_middleware(AuthResponseMiddleware)
+
+
+@app.exception_handler(turnstile.ChallengeRequired)
+async def challenge_handler(request: Request, exc: turnstile.ChallengeRequired) -> JSONResponse:
+    return JSONResponse(status_code=428, content=exc.public_body,
+                        headers={'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer'})
 
 
 @app.exception_handler(RequestValidationError)
