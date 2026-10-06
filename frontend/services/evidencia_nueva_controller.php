@@ -5,9 +5,19 @@ require_once __DIR__ . '/evidencia_form.php';
 $fileMode = $page === 'evidencia_archivo';
 $auditResult = api_get_all('/api/v1/auditorias');
 $documentResult = api_get_all('/api/v1/documentos');
-$availableAudits = array_values(array_filter($auditResult['data'], fn(array $row): bool => positive_id($row['id'] ?? null) !== null && ($row['estado'] ?? '') !== 'CANCELLED'));
+$availableAudits = array_values(array_filter($auditResult['data'], fn(array $row): bool => positive_id($row['id'] ?? null) !== null && !in_array($row['estado'] ?? '', ['COMPLETED','CANCELLED'],true)));
 $availableDocuments = $documentResult['data'];
 $post = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
+$findingId=positive_id($_GET['hallazgo_id']??null);
+if (isset($_GET['hallazgo_id']) && $findingId===null) throw new ApiPageError(422,'Hallazgo inválido.');
+$finding=null;
+if ($findingId!==null) {
+    if (!can_show_action('hallazgo_gestionar')) throw new ApiPageError(403,'No tiene permiso para asociar evidencias.');
+    $findingResult=api_get_object('/api/v1/hallazgos/'.$findingId);
+    if (!$findingResult['ok']) throw new ApiPageError(api_http_status($findingResult),'El hallazgo no está disponible.');
+    $finding=$findingResult['data'];
+    if (in_array($finding['estado']??'', ['CLOSED','ACCEPTED_RISK'],true)) throw new ApiPageError(409,'El hallazgo es terminal.');
+}
 $input = $post ? $_POST : [];
 $selectedDocument = positive_id($input['documento_id'] ?? null);
 $versionResult = ['ok' => true, 'status' => 200, 'data' => []];
@@ -16,6 +26,7 @@ if ($selectedDocument !== null && in_array($selectedDocument, array_column($avai
 }
 $availableVersions = $versionResult['data'];
 $prefilledAudit = positive_id($_GET['auditoria_id'] ?? null);
+if ($finding!==null) $prefilledAudit=positive_id($finding['auditoria_id']??null);
 if (!in_array($prefilledAudit, array_column($availableAudits, 'id'), true)) $prefilledAudit = null;
 $values = ['titulo' => '', 'descripcion' => '', 'auditoria_id' => $prefilledAudit, 'documento_id' => null, 'version_documento_id' => null, 'tipo' => 'NOTE', 'referencia_url' => ''];
 $fieldErrors = [];
@@ -41,6 +52,7 @@ if ($post) {
         $formError = 'Revisa los campos marcados.';
         http_response_code(422);
     } else {
+        if ($findingId!==null) $validation['body']['hallazgo_id']=$findingId;
         $result = $fileMode
             ? api_post_multipart('/api/v1/evidencias/archivo', $validation['body'], ['archivo' => ['path' => $file['tmp_name'], 'name' => $file['name']]])
             : api_post_json('/api/v1/evidencias/logica', $validation['body']);

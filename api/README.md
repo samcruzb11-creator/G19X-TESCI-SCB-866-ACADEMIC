@@ -59,3 +59,6 @@ deshabilita lógicamente al existir un ADMIN activo; no modifica otros usuarios.
 Fase 7A: [ciclo de auditorías, permisos y operación de 005](../docs/FASE_7A_AUDITORIAS.md).
 005 agrega únicamente IN_REVIEW al CHECK; no cambia 001–004. En instalaciones
 nuevas, provisionar primero el ADMIN en 004 con la herramienta existente.
+
+Fase 7B: [hallazgos y gestión integral de evidencias](../docs/FASE_7B_HALLAZGOS_EVIDENCIAS.md).
+Reutiliza el schema **005**; no requiere migración 006.

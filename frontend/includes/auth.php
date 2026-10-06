@@ -16,6 +16,8 @@ function user_has_role(string ...$roles): bool
 function can_show_action(string $action): bool
 {
     $roles = [
+        'hallazgos' => ['ADMIN','AUDITOR_INTERNO','AUDITOR_EXTERNO'],
+        'hallazgo_gestionar' => ['ADMIN','AUDITOR_INTERNO'],
         'documentos' => ['ADMIN', 'AUDITOR_INTERNO', 'AUDITOR_EXTERNO', 'RESPONSABLE_AREA', 'APROBADOR'],
         'auditorias' => ['ADMIN', 'AUDITOR_INTERNO', 'AUDITOR_EXTERNO'],
         'evidencias' => ['ADMIN', 'AUDITOR_INTERNO', 'AUDITOR_EXTERNO'],
@@ -36,7 +38,7 @@ function navigation_items(): array
 {
     $items = ['dashboard' => 'Dashboard'];
     if (can_show_action('solicitudes_acceso')) $items['solicitudes_acceso'] = 'Solicitudes de acceso';
-    foreach (['documentos' => 'Documentos', 'auditorias' => 'Auditorías', 'evidencias' => 'Evidencias'] as $key => $label) {
+    foreach (['documentos' => 'Documentos', 'auditorias' => 'Auditorías', 'hallazgos'=>'Hallazgos', 'evidencias' => 'Evidencias'] as $key => $label) {
         if (can_show_action($key)) $items[$key] = $label;
     }
     return $items;

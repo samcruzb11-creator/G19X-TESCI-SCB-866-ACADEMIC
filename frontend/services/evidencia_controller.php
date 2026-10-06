@@ -14,6 +14,9 @@ if (($_GET['accion'] ?? null) === 'descargar' && ($_SERVER['REQUEST_METHOD'] ?? 
 }
 $userResult = can_show_action('usuarios_catalogo') ? api_get('/api/v1/usuarios') : ['ok' => true, 'data' => []];
 $userNames = presentation_user_names() + areas_by_id($userResult['data']);
+require_once __DIR__.'/hallazgo_form.php';
+$findingPage=finding_page('fp');
+$findingResult=api_get('/api/v1/hallazgos',['evidencia_id'=>$recordId,'limit'=>20,'offset'=>($findingPage-1)*20]);
 $successMessage = $_SESSION['evidence_success'][$recordId] ?? null;
 unset($_SESSION['evidence_success'][$recordId]);
 session_write_close();

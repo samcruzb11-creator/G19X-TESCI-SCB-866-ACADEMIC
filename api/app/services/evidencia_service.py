@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import Any, BinaryIO
 from uuid import uuid4
+from app.core.config import settings
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -26,6 +27,7 @@ from app.models.entities import (
     VersionDocumento,
 )
 from app.services import authorization_service as authz
+from app.services import hallazgo_service as findings
 from app.schemas.evidencia import EvidenciaCreate, TipoEvidenciaEnum
 from app.services.storage_service import StorageService, storage_service
 from app.services.file_transaction import commit_stored_file, discard_uncommitted_file, rollback_safely
@@ -161,6 +163,7 @@ class EvidenciaService:
         content_type: str | None = None,
         correlation_id: str | None = None,
         client_info: dict[str, Any] | None = None,
+        hallazgo_id: int | None = None,
     ) -> Evidencia:
         """Registra una evidencia probatoria física (FILE) con hash SHA-256 en streaming.
 
@@ -193,12 +196,28 @@ class EvidenciaService:
         actor = _require_usuario(db, registrada_por_id)
         authz.authorize_evidence_references(db, actor, auditoria_id, documento_id, version_documento_id)
         documento_id = _validar_documento_y_version(db, documento_id, version_documento_id)
+        finding = findings.prepare_new_evidence(db, actor, hallazgo_id, auditoria_id)
 
         # Escritura física + SHA-256 en streaming
+        clean_filename = filename.replace('\\', '/').rsplit('/', 1)[-1].strip()
+        if not clean_filename or len(clean_filename) > 255 or any(ord(c) < 32 or ord(c) == 127 for c in clean_filename):
+            rollback_safely(db)
+            raise ValueError('Nombre de archivo invalido')
+        if content_type and (len(content_type) > 127 or any(ord(c) < 32 or ord(c) == 127 for c in content_type)):
+            rollback_safely(db)
+            raise ValueError('Tipo de archivo invalido')
+        class LimitedStream:
+            total = 0
+            def read(self, size=-1):
+                chunk = file_stream.read(size)
+                self.total += len(chunk)
+                if self.total > settings.max_evidence_file_bytes:
+                    raise ValueError('El archivo supera el limite de carga')
+                return chunk
         try:
             stored_file = self.storage.save_file(
-                file_stream=file_stream,
-                filename=filename,
+                file_stream=LimitedStream(),
+                filename=clean_filename,
                 content_type=content_type,
                 category="evidence",
             )
@@ -207,6 +226,8 @@ class EvidenciaService:
             raise
 
         try:
+            if stored_file.tamano_bytes == 0:
+                raise ValueError('El archivo esta vacio')
             evidencia = Evidencia(
                 auditoria_id=auditoria_id,
                 tipo=TipoEvidenciaEnum.FILE.value,
@@ -239,7 +260,6 @@ class EvidenciaService:
                     "titulo": evidencia.titulo,
                     "auditoria_id": evidencia.auditoria_id,
                     "sha256": evidencia.sha256,
-                    "storage_key": evidencia.storage_key,
                     "tamano_bytes": evidencia.tamano_bytes,
                     "nombre_original": evidencia.nombre_original,
                     "documento_id": evidencia.documento_id,
@@ -247,6 +267,8 @@ class EvidenciaService:
                     "client_info": client_info or {},
                 },
             )
+            if finding is not None:
+                findings.attach_new(db, actor, finding, evidencia)
             db.flush()  # Persist the event before attempting COMMIT.
         except Exception:
             discard_uncommitted_file(db, self.storage, stored_file.storage_key)
@@ -273,6 +295,7 @@ class EvidenciaService:
         version_documento_id: int | None = None,
         correlation_id: str | None = None,
         client_info: dict[str, Any] | None = None,
+        hallazgo_id: int | None = None,
     ) -> Evidencia:
         """Adaptador para ``fastapi.UploadFile`` — extrae stream y delega a ``registrar_evidencia_archivo()``.
 
@@ -299,6 +322,7 @@ class EvidenciaService:
             content_type=upload_file.content_type,
             correlation_id=correlation_id,
             client_info=client_info,
+            hallazgo_id=hallazgo_id,
         )
 
     # ------------------------------------------------------------------
@@ -306,6 +330,16 @@ class EvidenciaService:
     # ------------------------------------------------------------------
 
     def registrar_evidencia_logica(
+        self, db: Session, evidencia_in: EvidenciaCreate, registrada_por_id: int,
+        correlation_id: str | None = None, client_info: dict[str, Any] | None = None,
+    ) -> Evidencia:
+        try:
+            return self._registrar_evidencia_logica(db, evidencia_in, registrada_por_id, correlation_id, client_info)
+        except Exception:
+            rollback_safely(db)
+            raise
+
+    def _registrar_evidencia_logica(
         self,
         db: Session,
         evidencia_in: EvidenciaCreate,
@@ -339,6 +373,7 @@ class EvidenciaService:
         documento_id = _validar_documento_y_version(
             db, evidencia_in.documento_id, evidencia_in.version_documento_id
         )
+        finding = findings.prepare_new_evidence(db, actor, evidencia_in.hallazgo_id, evidencia_in.auditoria_id)
 
         evidencia = Evidencia(
             auditoria_id=evidencia_in.auditoria_id,
@@ -377,6 +412,9 @@ class EvidenciaService:
                 "client_info": client_info or {},
             },
         )
+        if finding is not None:
+            findings.attach_new(db, actor, finding, evidencia)
+        db.flush()
         db.commit()
         db.refresh(evidencia)
         return evidencia

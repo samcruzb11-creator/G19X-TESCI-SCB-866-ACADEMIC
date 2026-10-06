@@ -11,3 +11,6 @@
 <?php if (($evidence['tipo'] ?? '') === 'FILE'): ?><div><dt>Archivo</dt><dd><?= e($evidence['nombre_original'] ?? '') ?></dd></div><div><dt>Tamaño</dt><dd><?= e(file_size_label($evidence['tamano_bytes'] ?? null)) ?></dd></div><div class="info-wide"><dt>SHA-256</dt><dd class="integrity-hash"><?= e($evidence['sha256'] ?? '') ?></dd></div><?php endif; ?>
 <?php if (is_string($evidence['referencia_url'] ?? null) && $evidence['referencia_url'] !== ''): ?><div class="info-wide"><dt>Referencia</dt><dd><?= e($evidence['referencia_url']) ?></dd></div><?php endif; ?>
 </dl></section>
+
+<section class="panel audit-list"><div class="panel-heading"><h2>Hallazgos vinculados</h2></div><?php require __DIR__.'/hallazgos_list.php'; ?>
+<nav class="audit-pagination" aria-label="Paginación de hallazgos vinculados"><?php if ($findingPage>1): ?><a class="text-link" href="<?= e(page_url('evidencia',['id'=>$recordId,'fp'=>$findingPage-1])) ?>">Anterior</a><?php endif; ?><?php if (($findingResult['total']??0)>$findingPage*20 && $findingPage<501): ?><a class="text-link" href="<?= e(page_url('evidencia',['id'=>$recordId,'fp'=>$findingPage+1])) ?>">Siguiente</a><?php endif; ?></nav></section>

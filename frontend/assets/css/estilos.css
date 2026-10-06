@@ -232,3 +232,6 @@ select:disabled { background: #f3f5f7; color: var(--muted); }
     .metric-value { font-size: 28px; }
     .workspace-footer { margin-inline: 18px; flex-direction: column; font-size: 10px; }
 }
+
+.finding-evidence { padding-left: 20px; }
+.finding-evidence li { padding-block: 8px; overflow-wrap: anywhere; }

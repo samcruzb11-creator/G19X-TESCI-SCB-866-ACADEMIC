@@ -197,3 +197,9 @@ No usar ese stub en el despliegue. Configuración y operación completas:
 Fase 7A: [Auditorías: listado paginado, detalle, edición y ciclo de vida](../docs/FASE_7A_AUDITORIAS.md).
 Los filtros se aplican en la API antes de paginar. PHP conserva CSRF para todas
 las mutaciones y muestra controles por rol/estado; FastAPI es la autoridad.
+
+Fase 7B: [Hallazgos: filtros, formularios, estados y evidencias](../docs/FASE_7B_HALLAZGOS_EVIDENCIAS.md).
+Creación de evidencia con asociación atómica desde el detalle del hallazgo.
+El límite backend de evidencias es `MAX_EVIDENCE_FILE_BYTES`: 20 MiB por defecto
+(20 971 520 bytes). El formulario distingue ese límite de los límites de recepción
+PHP (`upload_max_filesize` y `post_max_size`); se aplica el más restrictivo.

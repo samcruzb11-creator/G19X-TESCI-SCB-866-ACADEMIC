@@ -3,17 +3,19 @@
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import FileResponse
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.models.entities import Evidencia
 
 from app.db.session import get_db
 from app.api.dependencies import current_user
 from app.models.entities import Usuario
 from app.services import authorization_service as authz
-from app.schemas.evidencia import EvidenciaCreate, EvidenciaListRead, EvidenciaRead
+from app.schemas.evidencia import EvidenciaCreate, EvidenciaListRead, EvidenciaRead, EvidenciaArchivoCreate
 from app.services.evidencia_service import evidencia_service
 from app.services.storage_service import storage_service
 
@@ -21,14 +23,14 @@ router = APIRouter(prefix="/evidencias", tags=["evidencias"])
 
 
 def _client_info(request: Request) -> dict[str, str | None]:
-    return {"ip": request.client.host if request.client else None,
-            "user_agent": request.headers.get("user-agent")}
+    return {"ip": request.client.host if request.client else None}
 
 
 @router.get("", response_model=list[EvidenciaListRead])
 def listar_evidencias(
+    response: Response,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Annotated[int, Query(ge=0, le=10000)] = 0,
     auditoria_id: Annotated[int | None, Query(gt=0)] = None,
     user: Usuario = Depends(current_user),
     db: Session = Depends(get_db),
@@ -37,6 +39,7 @@ def listar_evidencias(
     stmt = select(Evidencia).where(authz.evidencia_scope(user))
     if auditoria_id is not None:
         stmt = stmt.where(Evidencia.auditoria_id == auditoria_id)
+    response.headers['X-Total-Count'] = str(db.scalar(select(func.count()).select_from(stmt.subquery())))
     return list(db.scalars(stmt.order_by(Evidencia.id).limit(limit).offset(offset)).all())
 
 
@@ -52,12 +55,19 @@ def registrar_archivo(
     user: Usuario = Depends(current_user),
     db: Session = Depends(get_db),
     registrada_por_id: Annotated[int | None, Form(deprecated=True)] = None,
+    hallazgo_id: Annotated[int | None, Form(gt=0)] = None,
 ):
-    authz.authorize_evidence_references(db, user, auditoria_id, documento_id, version_documento_id)
+    documento_id = authz.authorize_evidence_references(db, user, auditoria_id, documento_id, version_documento_id)
+    try:
+        metadata = EvidenciaArchivoCreate(auditoria_id=auditoria_id, titulo=titulo, descripcion=descripcion,
+            documento_id=documento_id, version_documento_id=version_documento_id)
+    except ValidationError as exc:
+        raise RequestValidationError([{**error, 'loc': ('body', *error['loc'])} for error in exc.errors()]) from None
     try:
         return evidencia_service.registrar_evidencia_desde_upload(
-            db, auditoria_id, titulo, user.id, archivo, descripcion,
+            db, auditoria_id, metadata.titulo, user.id, archivo, metadata.descripcion,
             documento_id, version_documento_id, client_info=_client_info(request),
+            hallazgo_id=hallazgo_id,
         )
     except ValueError as exc:
         code = 404 if "no encontrada" in str(exc).lower() or "no encontrado" in str(exc).lower() else 400

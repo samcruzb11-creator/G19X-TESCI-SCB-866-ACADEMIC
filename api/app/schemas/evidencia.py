@@ -11,7 +11,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator, field_validator
+from urllib.parse import urlsplit
 
 
 # ===========================================================================
@@ -30,6 +31,11 @@ class TipoEvidenciaEnum(str, Enum):
 # ===========================================================================
 # EvidenciaBase
 # ===========================================================================
+
+def _clean_text(value, info):
+    if value is not None and any((ord(c) < 32 and not (info.field_name == 'descripcion' and c in '\r\n\t')) or ord(c) == 127 for c in value):
+        raise ValueError('Texto con caracteres de control')
+    return value
 
 class EvidenciaBase(BaseModel):
     """Atributos comunes de una evidencia (todos los tipos)."""
@@ -62,6 +68,23 @@ class EvidenciaCreate(EvidenciaBase):
     del binario en un ``multipart/form-data``.
     """
 
+    model_config = ConfigDict(extra='forbid')
+    descripcion: str | None = Field(default=None, max_length=16000)
+    _validate_text = field_validator('titulo', 'descripcion', 'referencia_url')(_clean_text)
+    hallazgo_id: int | None = Field(default=None, gt=0, strict=True)
+    auditoria_id: int = Field(gt=0, strict=True)
+    documento_id: int | None = Field(default=None, gt=0, strict=True)
+    version_documento_id: int | None = Field(default=None, gt=0, strict=True)
+
+    @field_validator('referencia_url')
+    @classmethod
+    def safe_reference(cls, value):
+        if value is not None:
+            parsed = urlsplit(value)
+            if parsed.scheme not in {'http', 'https'} or not parsed.hostname or parsed.username or parsed.password:
+                raise ValueError('Referencia HTTP/HTTPS sin credenciales requerida')
+        return value
+
     @model_validator(mode="after")
     def validate_tipo_requirements(self) -> EvidenciaCreate:
         if self.tipo == TipoEvidenciaEnum.FILE:
@@ -91,11 +114,12 @@ class EvidenciaArchivoCreate(BaseModel):
     internamente y **no** se incluyen aquí.
     """
 
+    _validate_text = field_validator('titulo', 'descripcion')(_clean_text)
     auditoria_id: int = Field(description="ID de la auditoría destinataria")
     titulo: Annotated[
         str, StringConstraints(min_length=3, max_length=200, strip_whitespace=True)
     ]
-    descripcion: str | None = None
+    descripcion: str | None = Field(default=None, max_length=16000)
     documento_id: int | None = Field(
         default=None, description="Documento del sistema al que pertenece este archivo"
     )

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 if (!isset($route)) { http_response_code(404); exit; }
 require_once __DIR__ . '/auditoria_form.php';
+require_once __DIR__ . '/hallazgo_form.php';
 $stateOptions = [];
 foreach (['PLANNED','IN_PROGRESS','IN_REVIEW','COMPLETED','CANCELLED'] as $state) $stateOptions[$state] = audit_status($state)[0];
 $userNames = presentation_user_names();
@@ -91,6 +92,9 @@ if ($page === 'auditorias') {
 }
 
 if ($page === 'auditoria') {
+    if ($audit !== null) {
+        $findingResult=api_get('/api/v1/hallazgos',['auditoria_id'=>$recordId,'limit'=>5,'offset'=>0]);
+    }
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $audit !== null) {
         if (!can_show_action('auditoria_estado')) throw new ApiPageError(403, 'No tiene permiso para cambiar el estado.');
         if (!csrf_valid($_POST['csrf_token'] ?? null)) {

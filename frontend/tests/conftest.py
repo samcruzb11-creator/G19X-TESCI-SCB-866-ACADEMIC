@@ -95,6 +95,8 @@ class FakeAPI:
         self.evidence = dict(id=1, auditoria_id=1, documento_id=1, version_documento_id=1, titulo='Test evidence',
                             tipo='FILE', registrada_por_id=7, nombre_original='evidence.pdf', mime_type='application/pdf')
 
+        self.finding = dict(id=1,auditoria_id=1,numero=1,titulo='Test finding',descripcion='Verified issue',categoria='Control',severidad='HIGH',estado='OPEN',responsable_id=7,responsable=dict(id=7,nombre='Test User'),fecha_limite=None,resolucion=None,created_by_id=7,updated_by_id=None,created_at='2026-10-01T00:00:00',updated_at='2026-10-01T00:00:00',detectado_en='2026-10-01T00:00:00',evidencias_count=1)
+
     def answer(self, request):
         self.requests.append(request)
         path, method = request['path'], request['method']
@@ -122,6 +124,21 @@ class FakeAPI:
             self.audit['estado'] = request['json']['estado']
             self.audit['updated_at'] = '2026-10-01T00:00:02'
             return 200, self.audit, {}
+        if path == '/api/v1/hallazgos' and method=='POST':
+            self.finding.update(request['json'])
+            return 201,self.finding,{}
+        if path == '/api/v1/hallazgos/1' and method=='PATCH':
+            self.finding.update({k:v for k,v in request['json'].items() if k!='updated_at_esperado'})
+            self.finding['updated_at']='2026-10-01T00:00:01'
+            return 200,self.finding,{}
+        if path == '/api/v1/hallazgos/1/estado' and method=='POST':
+            self.finding['estado']=request['json']['estado']
+            self.finding['updated_at']='2026-10-01T00:00:02'
+            return 200,self.finding,{}
+        if path == '/api/v1/hallazgos/1/evidencias':
+            return (201,self.finding,{}) if method=='POST' else (200,[self.evidence],{'X-Total-Count':'1'})
+        if path == '/api/v1/hallazgos': return 200,[self.finding],{'X-Total-Count':'1'}
+        if path == '/api/v1/hallazgos/1': return 200,self.finding,{}
         if method == 'POST':
             if path.endswith('/versiones'): return 201, self.version, {}
             if path == '/api/v1/documentos': return 201, self.document, {}

@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     public_frontend_url: str = ''
     password_reset_ttl_seconds: int = Field(default=1800, ge=60, le=1800)
     storage_path: Path = STORAGE_ROOT
+    max_evidence_file_bytes: int = Field(default=20 * 1024 * 1024, ge=1, le=1024 * 1024 * 1024)
 
     @field_validator("storage_path", mode="before")
     @classmethod

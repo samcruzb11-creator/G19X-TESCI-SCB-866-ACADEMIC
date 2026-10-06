@@ -2,7 +2,7 @@
 from fastapi import HTTPException
 from sqlalchemy import select, exists, true, false, and_, or_
 from app.models.entities import (Auditoria, Documento, DocumentoAuditoria, VersionDocumento,
-                                Evidencia, RondaAprobacion, DecisionAprobacion, Usuario)
+                                Evidencia, Hallazgo, RondaAprobacion, DecisionAprobacion, Usuario)
 
 AUDITORES = {'AUDITOR_INTERNO', 'AUDITOR_EXTERNO'}
 PERMISSIONS = {
@@ -13,6 +13,9 @@ PERMISSIONS = {
     'version.read': AUDITORES | {'RESPONSABLE_AREA', 'APROBADOR'},
     'version.create': {'RESPONSABLE_AREA'},
     'evidencia.read': AUDITORES, 'evidencia.create': AUDITORES,
+    'hallazgo.read': AUDITORES, 'hallazgo.create': {'AUDITOR_INTERNO'},
+    'hallazgo.update': {'AUDITOR_INTERNO'}, 'hallazgo.transition': {'AUDITOR_INTERNO'},
+    'hallazgo.link': {'AUDITOR_INTERNO'}, 'hallazgo.history': set(),
     'historial.read': set(), 'usuarios.read': {'AUDITOR_INTERNO'},
     'areas.read': AUDITORES | {'RESPONSABLE_AREA', 'APROBADOR'},
 }
@@ -73,6 +76,21 @@ def evidencia_scope(user: Usuario):
             VersionDocumento.id == Evidencia.version_documento_id,
             VersionDocumento.documento_id == Evidencia.documento_id,
             linked_document(VersionDocumento.documento_id, Evidencia.auditoria_id)))))
+
+
+def hallazgo_scope(user: Usuario):
+    return exists(select(Auditoria.id).where(Auditoria.id == Hallazgo.auditoria_id,
+        auditoria_scope(user)).correlate_except(Auditoria))
+
+
+def evidence_consistency():
+    """Even ADMIN must not attach legacy inconsistent evidence references."""
+    return and_(or_(Evidencia.documento_id.is_(None),
+        linked_document(Evidencia.documento_id, Evidencia.auditoria_id)),
+        or_(Evidencia.version_documento_id.is_(None), exists(select(VersionDocumento.id).where(
+            VersionDocumento.id == Evidencia.version_documento_id,
+            VersionDocumento.documento_id == Evidencia.documento_id,
+            linked_document(VersionDocumento.documento_id, Evidencia.auditoria_id)).correlate_except(VersionDocumento))))
 
 def resource(db, user, model, resource_id, action, scope, *conditions):
     require_permission(user, action)
