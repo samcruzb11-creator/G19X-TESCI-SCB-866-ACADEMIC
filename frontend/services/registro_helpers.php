@@ -45,8 +45,9 @@ function record_error(array $result, string $noun): array
 function audit_status(mixed $state): array
 {
     return is_string($state) ? ([
-        'PLANNED' => ['Planificada', 'warning'], 'IN_PROGRESS' => ['En curso', 'neutral'],
-        'COMPLETED' => ['Completada', 'success'], 'CANCELLED' => ['Cancelada', 'neutral'],
+        'PLANNED' => ['Borrador', 'warning'], 'IN_PROGRESS' => ['Activa', 'neutral'],
+        'IN_REVIEW' => ['En revisión', 'warning'],
+        'COMPLETED' => ['Cerrada', 'success'], 'CANCELLED' => ['Cancelada', 'neutral'],
     ][$state] ?? ['Sin clasificar', 'neutral']) : ['Sin clasificar', 'neutral'];
 }
 

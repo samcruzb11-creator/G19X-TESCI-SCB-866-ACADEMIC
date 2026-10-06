@@ -172,6 +172,25 @@ h3 { font-size: 16px; font-weight: 600; }
 .module-links { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 24px; }
 select:disabled { background: #f3f5f7; color: var(--muted); }
 
+/* Audit lifecycle: bounded pages, readable history and mobile record cards. */
+.audit-pagination { display: flex; flex-wrap: wrap; gap: 16px; padding: 18px 24px; }
+.audit-events { padding-left: 24px; }
+.audit-events li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.audit-events p { color: var(--muted); margin-block: 8px; }
+.audit-more-filters { flex: 1 1 100%; min-width: 0; }
+.audit-more-filters summary { cursor: pointer; padding-block: 8px; color: var(--muted); }
+.audit-filter-fields { display: flex; flex-wrap: wrap; gap: 16px; padding-top: 12px; }
+@media (max-width: 760px) {
+    .audit-list .table-scroll { overflow: visible; }
+    .audit-list .data-table { min-width: 0; display: block; }
+    .audit-list thead { display: none; }
+    .audit-list tbody { display: block; }
+    .audit-list tr { display: grid; grid-template-columns: 1fr; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+    .audit-list .data-table td { display: block; padding: 6px 0; border: 0; white-space: normal; }
+    .audit-list td::before { content: attr(data-label); display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+    .audit-pagination { padding-inline: 18px; }
+}
+
 /* 5. Desktop and smaller viewports */
 @media (max-width: 1400px) {
     :root { --sidebar-width: 220px; }

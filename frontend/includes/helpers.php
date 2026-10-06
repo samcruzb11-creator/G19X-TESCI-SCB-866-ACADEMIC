@@ -104,6 +104,12 @@ function event_label(mixed $action): string
         'CREACION_DOCUMENTO' => 'Creación del documento',
         'CREACION_VERSION' => 'Carga de versión',
         'ACTUALIZACION_DOCUMENTO' => 'Actualización del documento',
+        'CREACION_AUDITORIA' => 'Creación de la auditoría',
+        'ACTUALIZACION_AUDITORIA' => 'Edición de la auditoría',
+        'ACTIVACION_AUDITORIA' => 'Activación de la auditoría',
+        'REVISION_AUDITORIA' => 'Entrada a revisión',
+        'REACTIVACION_AUDITORIA' => 'Regreso a activa',
+        'CIERRE_AUDITORIA' => 'Cierre de la auditoría',
     ][$action] ?? str_replace('_', ' ', $action);
 }
 

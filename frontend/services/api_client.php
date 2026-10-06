@@ -14,7 +14,7 @@ function public_auth_endpoint(string $path): bool
 /** Only known API resources may be addressed; never accept a client-supplied URL. */
 function api_url(string $path, array $query = []): ?string
 {
-    if (!preg_match('~\A/api/v1/(?:auth/(?:login|me|logout|access-requests|password-reset/(?:request|confirm)|initial-password/confirm)|access-requests(?:/[1-9][0-9]*(?:/(?:approve|reject|resend))?)?|areas|usuarios|auditorias|evidencias(?:/(?:archivo|logica|[1-9][0-9]*(?:/descargar)?))?|documentos(?:/[1-9][0-9]*(?:/(?:historial|versiones(?:/[1-9][0-9]*/descargar)?))?)?)\z~', $path)) {
+    if (!preg_match('~\A/api/v1/(?:auth/(?:login|me|logout|access-requests|password-reset/(?:request|confirm)|initial-password/confirm)|access-requests(?:/[1-9][0-9]*(?:/(?:approve|reject|resend))?)?|areas|usuarios|auditorias(?:/[1-9][0-9]*(?:/(?:estado|historial))?)?|evidencias(?:/(?:archivo|logica|[1-9][0-9]*(?:/descargar)?))?|documentos(?:/[1-9][0-9]*(?:/(?:historial|versiones(?:/[1-9][0-9]*/descargar)?))?)?)\z~', $path)) {
         return null;
     }
     $url = rtrim(API_BASE_URL, '/') . $path;
@@ -41,11 +41,12 @@ function api_headers(string $path, bool $json = false): array
 function api_request(string $method, string $path, array $query = [], ?array $multipart = null, ?array $json = null): array
 {
     $url = api_url($path, $query);
-    if (!function_exists('curl_init') || $url === null || !in_array($method, ['GET', 'POST'], true)) {
+    if (!function_exists('curl_init') || $url === null || !in_array($method, ['GET', 'POST', 'PATCH'], true)) {
         return api_failure();
     }
+    if ($method === 'PATCH' && (!preg_match('~\A/api/v1/auditorias/[1-9][0-9]*\z~', $path) || $json === null || $multipart !== null)) return api_failure();
     if ($method === 'POST' && !(
-        ((public_auth_endpoint($path) || preg_match('~\A/api/v1/access-requests/[1-9][0-9]*/(?:approve|reject|resend)\z~', $path)) && $json !== null && $multipart === null)
+        ((public_auth_endpoint($path) || preg_match('~\A/api/v1/access-requests/[1-9][0-9]*/(?:approve|reject|resend)\z~', $path) || preg_match('~\A/api/v1/auditorias/[1-9][0-9]*/estado\z~', $path)) && $json !== null && $multipart === null)
         ||
         (in_array($path, ['/api/v1/auth/login', '/api/v1/documentos', '/api/v1/auditorias', '/api/v1/evidencias/logica'], true) && $json !== null && $multipart === null)
         || ($path === '/api/v1/auth/logout' && $multipart === null && $json === null)
@@ -61,12 +62,14 @@ function api_request(string $method, string $path, array $query = [], ?array $mu
     try {
         $authRequest = str_starts_with($path, '/api/v1/auth/');
         $retryAfter = null;
+        $totalCount = null;
         curl_setopt_array($handle, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => API_CONNECT_TIMEOUT,
-            CURLOPT_TIMEOUT => $authRequest ? auth_api_timeout_seconds() : ($method === 'POST' ? 120 : API_TIMEOUT),
-            CURLOPT_HEADERFUNCTION => static function ($handle, string $line) use (&$retryAfter): int {
-                if (str_starts_with($line, 'HTTP/')) $retryAfter = null;
+            CURLOPT_TIMEOUT => $authRequest ? auth_api_timeout_seconds() : ($method !== 'GET' ? 120 : API_TIMEOUT),
+            CURLOPT_HEADERFUNCTION => static function ($handle, string $line) use (&$retryAfter, &$totalCount): int {
+                if (str_starts_with($line, 'HTTP/')) { $retryAfter = null; $totalCount = null; }
+                if (preg_match('/\AX-Total-Count:\s*([0-9]{1,12})\s*\z/i', trim($line), $count)) $totalCount = (int) $count[1];
                 if (preg_match('/\ARetry-After:\s*([0-9]{1,5})\s*\z/i', trim($line), $match)) {
                     $retryAfter = max(1, min(1200, (int) $match[1]));
                 }
@@ -76,14 +79,15 @@ function api_request(string $method, string $path, array $query = [], ?array $mu
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
         ]);
-        if ($method === 'POST') {
-            curl_setopt($handle, CURLOPT_POST, true);
+        if ($method === 'POST' || $method === 'PATCH') {
+            if ($method === 'POST') curl_setopt($handle, CURLOPT_POST, true);
             if ($json !== null) {
                 // API JSON bodies are objects, including an empty resend command.
                 curl_setopt($handle, CURLOPT_POSTFIELDS, json_encode((object) $json, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
             } elseif ($multipart !== null) {
                 curl_setopt($handle, CURLOPT_POSTFIELDS, $multipart);
             }
+            if ($method === 'PATCH') curl_setopt($handle, CURLOPT_CUSTOMREQUEST, 'PATCH');
         }
         $body = curl_exec($handle);
         $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
@@ -95,6 +99,7 @@ function api_request(string $method, string $path, array $query = [], ?array $mu
         } else {
             $data = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
             $result = is_array($data) ? ['ok' => true, 'status' => $status, 'data' => $data, 'message' => ''] : api_failure();
+            if ($totalCount !== null) $result['total'] = $totalCount;
         }
     } catch (Throwable $exception) {
         error_log('Frontend API transport: ' . get_class($exception));
@@ -108,6 +113,11 @@ function api_request(string $method, string $path, array $query = [], ?array $mu
 function api_post_json(string $path, array $payload, array $query = []): array
 {
     return api_request('POST', $path, $query, null, $payload);
+}
+
+function api_patch_json(string $path, array $payload): array
+{
+    return api_request('PATCH', $path, [], null, $payload);
 }
 
 function api_get(string $path, array $query = []): array

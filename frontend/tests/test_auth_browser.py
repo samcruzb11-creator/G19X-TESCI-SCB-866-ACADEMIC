@@ -29,10 +29,17 @@ def chromium(tmp_path, request_handler=None, events=None):
         try:
             deadline = time.monotonic()+15
             active = profile/'DevToolsActivePort'
-            while not active.exists():
-                assert time.monotonic() < deadline and proc.poll() is None, 'Headless browser startup failed'
-                time.sleep(.05)
-            port = int(active.read_text().splitlines()[0])
+            while True:
+                # Chrome creates this file before finishing the write and can
+                # briefly hold a Windows sharing lock. Wait for a readable port.
+                try:
+                    port = int(active.read_text().splitlines()[0])
+                    if not 1 <= port <= 65535:
+                        raise ValueError('Port not ready')
+                    break
+                except (FileNotFoundError, PermissionError, ValueError, IndexError):
+                    assert time.monotonic() < deadline and proc.poll() is None, 'Headless browser startup failed'
+                    time.sleep(.05)
             targets = httpx.get(f'http://127.0.0.1:{port}/json/list').json()
             target = next(t for t in targets if t['type'] == 'page')
             with connect(target['webSocketDebuggerUrl'], open_timeout=10) as ws:

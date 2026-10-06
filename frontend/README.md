@@ -193,3 +193,7 @@ Windows impide iniciar los procesos internos de Chrome, ejecutar las mismas
 pruebas con autorización fuera del sandbox, manteniendo el perfil temporal.
 No usar ese stub en el despliegue. Configuración y operación completas:
 [FASE_6B_4B_TURNSTILE.md](../docs/FASE_6B_4B_TURNSTILE.md).
+
+Fase 7A: [Auditorías: listado paginado, detalle, edición y ciclo de vida](../docs/FASE_7A_AUDITORIAS.md).
+Los filtros se aplican en la API antes de paginar. PHP conserva CSRF para todas
+las mutaciones y muestra controles por rol/estado; FastAPI es la autoridad.

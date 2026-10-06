@@ -128,7 +128,7 @@ class Auditoria(Base):
     __table_args__ = (
         UniqueConstraint("codigo", name="uq_auditorias_codigo"),
         CheckConstraint(
-            "estado IN ('PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')",
+            "estado IN ('PLANNED', 'IN_PROGRESS', 'IN_REVIEW', 'COMPLETED', 'CANCELLED')",
             name="ck_auditorias_estado",
         ),
         CheckConstraint(

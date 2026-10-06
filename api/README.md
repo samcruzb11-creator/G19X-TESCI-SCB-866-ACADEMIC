@@ -55,3 +55,7 @@ Para una instalación local en 004 sin ADMIN activo, consulte el
 [bootstrap inicial del primer ADMIN](../docs/FASE_6D_1_BOOTSTRAP_ADMIN.md).
 La CLI solicita credenciales interactivas ocultas, fija el rol ADMIN y se
 deshabilita lógicamente al existir un ADMIN activo; no modifica otros usuarios.
+
+Fase 7A: [ciclo de auditorías, permisos y operación de 005](../docs/FASE_7A_AUDITORIAS.md).
+005 agrega únicamente IN_REVIEW al CHECK; no cambia 001–004. En instalaciones
+nuevas, provisionar primero el ADMIN en 004 con la herramienta existente.

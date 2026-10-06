@@ -7,7 +7,7 @@ function validate_audit_form(array $input, array $users): array
     $values = [
         'codigo' => validated_text($input, 'codigo', $errors, 1, 60),
         'nombre' => validated_text($input, 'nombre', $errors, 1, 200),
-        'alcance' => validated_text($input, 'alcance', $errors, 1, null, true),
+        'alcance' => validated_text($input, 'alcance', $errors, 1, 16000, true),
         'responsable_id' => catalog_id($input, 'responsable_id', $users, $errors),
     ];
     foreach (['fecha_inicio_prevista', 'fecha_fin_prevista'] as $field) {

@@ -22,6 +22,8 @@ function can_show_action(string $action): bool
         'documento_crear' => ['ADMIN', 'RESPONSABLE_AREA'],
         'version_cargar' => ['ADMIN', 'RESPONSABLE_AREA'],
         'auditoria_crear' => ['ADMIN', 'AUDITOR_INTERNO'],
+        'auditoria_editar' => ['ADMIN'],
+        'auditoria_estado' => ['ADMIN'],
         'evidencia_crear' => ['ADMIN', 'AUDITOR_INTERNO', 'AUDITOR_EXTERNO'],
         'historial' => ['ADMIN'],
         'usuarios_catalogo' => ['ADMIN'],

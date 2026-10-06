@@ -29,6 +29,7 @@ $routes = [
     'auditorias' => ['title' => 'Auditorías', 'file' => 'auditorias.php', 'nav' => 'auditorias'],
     'auditoria_nueva' => ['title' => 'Nueva auditoría', 'file' => 'auditoria_nueva.php', 'nav' => 'auditorias'],
     'auditoria' => ['title' => 'Detalle de auditoría', 'file' => 'auditoria.php', 'nav' => 'auditorias'],
+    'auditoria_editar' => ['title' => 'Editar auditoría', 'file' => 'auditoria_nueva.php', 'nav' => 'auditorias'],
     'evidencias' => ['title' => 'Evidencias', 'file' => 'evidencias.php', 'nav' => 'evidencias'],
     'evidencia_archivo' => ['title' => 'Evidencia de archivo', 'file' => 'evidencia_nueva.php', 'nav' => 'evidencias'],
     'evidencia_logica' => ['title' => 'Evidencia lógica', 'file' => 'evidencia_nueva.php', 'nav' => 'evidencias'],
@@ -44,7 +45,7 @@ $authLayout = $page === 'login' || in_array($page, $publicAuthPages, true);
 $notFound = !isset($routes[$page]);
 $documentId = positive_id($_GET['id'] ?? null);
 $recordId = $documentId;
-if (in_array($page, ['documento', 'auditoria', 'evidencia', 'versiones_documento'], true) && $recordId === null) {
+if (in_array($page, ['documento', 'auditoria', 'auditoria_editar', 'evidencia', 'versiones_documento'], true) && $recordId === null) {
     $notFound = true;
 }
 $route = $notFound ? ['title' => 'Página no encontrada', 'file' => 'pendiente.php', 'nav' => ''] : $routes[$page];
@@ -73,6 +74,7 @@ try {
             'dashboard' => null, 'documentos' => 'documentos', 'documento' => 'documentos',
             'documento_nuevo' => 'documento_crear', 'versiones_documento' => 'documentos',
             'auditorias' => 'auditorias', 'auditoria' => 'auditorias', 'auditoria_nueva' => 'auditoria_crear',
+            'auditoria_editar' => 'auditoria_editar',
             'evidencias' => 'evidencias', 'evidencia' => 'evidencias',
             'evidencia_archivo' => 'evidencia_crear', 'evidencia_logica' => 'evidencia_crear',
         ][$page] ?? null;
@@ -86,7 +88,7 @@ try {
         if (!$notFound && $page === 'documento_nuevo') {
             require __DIR__ . '/services/documento_nuevo_controller.php';
         }
-        if (!$notFound && in_array($page, ['auditorias', 'auditoria', 'auditoria_nueva'], true)) {
+        if (!$notFound && in_array($page, ['auditorias', 'auditoria', 'auditoria_nueva', 'auditoria_editar'], true)) {
             require __DIR__ . '/services/auditorias_controller.php';
         }
         if (!$notFound && in_array($page, ['evidencia_archivo', 'evidencia_logica'], true)) {

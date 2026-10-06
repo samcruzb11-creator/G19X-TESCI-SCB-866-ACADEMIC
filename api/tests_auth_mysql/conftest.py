@@ -140,7 +140,22 @@ def mysql_factory():
             assert connection.execute(text('SELECT COUNT(*) FROM access_requests')).scalar_one() == 0
             assert connection.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '004'
             connection.commit()
-        print(f"\nMySQL {version}; temporary schema {name}; Alembic 001->002->001->002->003->002->003->004->003->004 OK; existing DDL/rows preserved")
+            # 7A adds only the missing review state. Existing rows stay byte-for-byte equal.
+            tables_005 = inspect(connection).get_table_names()
+            rows_005 = {t: [tuple(r) for r in connection.exec_driver_sql(f'SELECT * FROM `{t}`')]
+                        for t in tables_005 if t != 'alembic_version'}
+            connection.commit()
+            command.upgrade(cfg, '005')
+            assert rows_005 == {t: [tuple(r) for r in connection.exec_driver_sql(f'SELECT * FROM `{t}`')]
+                                for t in rows_005}
+            connection.commit()
+            command.downgrade(cfg, '004')
+            assert snapshot_003() == before_004
+            connection.commit()
+            command.upgrade(cfg, '005')
+            assert connection.exec_driver_sql('SELECT version_num FROM alembic_version').scalar_one() == '005'
+            connection.commit()
+        print(f"\nMySQL {version}; temporary schema {name}; Alembic through 005 upgrade/downgrade OK; existing rows preserved")
         yield sessionmaker(bind=engine, autoflush=False, autocommit=False)
     finally:
         if engine is not None:

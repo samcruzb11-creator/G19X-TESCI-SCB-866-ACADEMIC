@@ -7,6 +7,7 @@ from app.models.entities import (Auditoria, Documento, DocumentoAuditoria, Versi
 AUDITORES = {'AUDITOR_INTERNO', 'AUDITOR_EXTERNO'}
 PERMISSIONS = {
     'auditoria.read': AUDITORES, 'auditoria.create': {'AUDITOR_INTERNO'},
+    'auditoria.update': set(), 'auditoria.transition': set(), 'auditoria.history': set(),
     'documento.read': AUDITORES | {'RESPONSABLE_AREA', 'APROBADOR'},
     'documento.create': {'RESPONSABLE_AREA'}, 'documento.update': {'RESPONSABLE_AREA'},
     'version.read': AUDITORES | {'RESPONSABLE_AREA', 'APROBADOR'},
@@ -99,14 +100,18 @@ def authorize_audit_create(db, user, payload):
     require_permission(user, 'auditoria.create')
     if user.rol != 'ADMIN' and payload.responsable_id != user.id:
         raise HTTPException(403, 'Debe asignarse como responsable')
-    if db.scalar(select(Usuario.id).where(Usuario.id == payload.responsable_id, eligible_users_scope())) is None:
+    if db.scalar(select(Usuario.id).where(Usuario.id == payload.responsable_id,
+                                        eligible_users_scope()).with_for_update()) is None:
         raise HTTPException(404, 'Responsable elegible no encontrado')
 
 def authorize_evidence_references(db, user, audit_id, document_id, version_id):
     require_permission(user, 'evidencia.create')
-    audit = db.get(Auditoria, audit_id)
-    if audit is None or (user.rol != 'ADMIN' and audit.responsable_id != user.id):
+    audit = db.scalar(select(Auditoria).where(Auditoria.id == audit_id,
+        auditoria_scope(user)).with_for_update().execution_options(populate_existing=True))
+    if audit is None:
         raise HTTPException(404, 'Recurso no encontrado')
+    if audit.estado in {'COMPLETED', 'CANCELLED'}:
+        raise HTTPException(409, 'La auditoria no admite nuevas evidencias')
     if version_id is not None:
         version = db.get(VersionDocumento, version_id)
         if version is None or (document_id is not None and version.documento_id != document_id):

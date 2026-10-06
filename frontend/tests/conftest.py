@@ -90,7 +90,8 @@ class FakeAPI:
                              created_by_id=7, version_vigente_id=1, version_vigente=self.version,
                              created_at='2026-10-01T00:00:00', updated_at='2026-10-01T00:00:00')
         self.audit = dict(id=1, codigo='AUD1', nombre='Test audit', alcance='Scope', estado='PLANNED',
-                         responsable_id=7, created_by_id=7, fecha_inicio_prevista=None, fecha_fin_prevista=None)
+                         responsable_id=7, created_by_id=7, fecha_inicio_prevista=None, fecha_fin_prevista=None,
+                         updated_at='2026-10-01T00:00:00', responsable=dict(id=7,nombre='Test User'),areas=[])
         self.evidence = dict(id=1, auditoria_id=1, documento_id=1, version_documento_id=1, titulo='Test evidence',
                             tipo='FILE', registrada_por_id=7, nombre_original='evidence.pdf', mime_type='application/pdf')
 
@@ -113,6 +114,14 @@ class FakeAPI:
             return 204, None, {}
         if path.endswith('/descargar'):
             return 200, self.content, self.file_headers
+        if method == 'PATCH' and path == '/api/v1/auditorias/1':
+            self.audit.update({k:v for k,v in request['json'].items() if k != 'updated_at_esperado'})
+            self.audit['updated_at'] = '2026-10-01T00:00:01'
+            return 200, self.audit, {}
+        if method == 'POST' and path == '/api/v1/auditorias/1/estado':
+            self.audit['estado'] = request['json']['estado']
+            self.audit['updated_at'] = '2026-10-01T00:00:02'
+            return 200, self.audit, {}
         if method == 'POST':
             if path.endswith('/versiones'): return 201, self.version, {}
             if path == '/api/v1/documentos': return 201, self.document, {}
@@ -124,7 +133,8 @@ class FakeAPI:
         if path.endswith('/historial'): return 200, [], {}
         if path.endswith('/versiones'): return 200, [self.version], {}
         if path.startswith('/api/v1/documentos/'): return 200, self.document, {}
-        if path == '/api/v1/auditorias': return 200, [self.audit], {}
+        if path == '/api/v1/auditorias': return 200, [self.audit], {'X-Total-Count':'1'}
+        if path == '/api/v1/auditorias/1': return 200, self.audit, {}
         if path == '/api/v1/evidencias': return 200, [self.evidence], {}
         if path.startswith('/api/v1/evidencias/'): return 200, self.evidence, {}
         return 404, {}, {}
@@ -164,6 +174,7 @@ def frontend(tmp_path):
 
         do_GET = handle_request
         do_POST = handle_request
+        do_PATCH = handle_request
 
     server = ThreadingHTTPServer(('127.0.0.1',0),Handler)
     thread = Thread(target=server.serve_forever,daemon=True)
