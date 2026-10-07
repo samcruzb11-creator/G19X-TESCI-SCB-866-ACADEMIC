@@ -209,3 +209,10 @@ Incluye navegación por rol, listados paginados, creación, detalle y decisiones
 inmutables. Auditorías y documentos muestran sus rondas. POST + CSRF para toda
 mutación; JWT solo en sesión PHP. Los catálogos de versiones/aprobadores se
 consultan por páginas de veinte, sin descargar tablas completas.
+
+Fase 7D: [dashboard ejecutivo y alertas](../docs/FASE_7D_DASHBOARD_ALERTAS_INDICADORES.md).
+`dashboard` usa una única respuesta de resumen calculado en FastAPI; `alertas`
+ofrece filtros/paginación y enlaces autorizados. KPI y severidad nunca se calculan
+en PHP/JavaScript. Errores no fabrican ceros; sin datos se indica explícitamente.
+JWT en sesión PHP, escaping y CSRF existentes conservados. Vista móvil de una
+columna validada a 1440/390/320 px; actividad según permisos de historial.

@@ -66,3 +66,9 @@ Reutiliza el schema **005**; no requiere migración 006.
 Fase 7C: [rondas y decisiones de aprobación por versión documental](../docs/FASE_7C_APROBACIONES.md).
 Reutiliza RondaAprobacion/DecisionAprobacion en **005**, sin migración adicional.
 La identidad del aprobador y el resultado se determinan en backend.
+
+Fase 7D: [dashboard ejecutivo, alertas derivadas e indicadores con scope SQL](../docs/FASE_7D_DASHBOARD_ALERTAS_INDICADORES.md).
+Cuatro GET bajo `/api/v1/dashboard`: resumen, indicadores, alertas y actividad.
+Usa schema **005**, sin migración 006. Porcentajes separados, null/NO_DATA con
+denominador cero y permisos de lectura/historial existentes. Mantener MySQL/InnoDB
+REPEATABLE READ para coherencia de la respuesta completa.

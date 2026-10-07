@@ -116,6 +116,8 @@ class FakeAPI:
             return 204, None, {}
         if path.startswith('/api/v1/aprobaciones'):
             return self.answer_approvals(request)
+        if path.startswith('/api/v1/dashboard/'):
+            return self.answer_dashboard(request)
         if path.endswith('/descargar'):
             return 200, self.content, self.file_headers
         if method == 'PATCH' and path == '/api/v1/auditorias/1':
@@ -157,6 +159,47 @@ class FakeAPI:
         if path == '/api/v1/evidencias': return 200, [self.evidence], {}
         if path.startswith('/api/v1/evidencias/'): return 200, self.evidence, {}
         return 404, {}, {}
+
+    def answer_dashboard(self, request):
+        from urllib.parse import parse_qs
+        self.answer_approvals(dict(path='/api/v1/aprobaciones',method='GET'))
+        auditor = self.role in {'ADMIN','AUDITOR_INTERNO','AUDITOR_EXTERNO'}
+        def dist(states, state):
+            return dict(total=1,por_estado={s:int(s==state) for s in (*states,'DESCONOCIDO')})
+        def ratio(n,d,applicable=True):
+            return dict(numerador=n,denominador=d,porcentaje=100*n/d if applicable and d else None,
+                        estado='NOT_APPLICABLE' if not applicable else 'OK' if d else 'NO_DATA')
+        indicators=dict(
+            auditorias=dist(('PLANNED','IN_PROGRESS','IN_REVIEW','COMPLETED','CANCELLED'),self.audit['estado']) if auditor else None,
+            hallazgos=dist(('OPEN','IN_PROGRESS','PENDING_VERIFICATION','CLOSED','ACCEPTED_RISK'),self.finding['estado']) if auditor else None,
+            aprobaciones=dist(('PENDING','IN_REVIEW','APPROVED','REJECTED','CHANGES_REQUESTED','CANCELLED'),self.approval['estado']),
+            decisiones={**dist(('PENDING','APPROVED','REJECTED','CHANGES_REQUESTED'),self.approval_decision['estado']),
+                        'resueltas':int(self.approval_decision['estado']!='PENDING'),
+                        'pendientes_propias':int(self.approval_decision['estado']=='PENDING') if self.role=='APROBADOR' else None},
+            documentos=dict(total=1,versiones=1,sin_version=None if self.role=='APROBADOR' else 0),
+            evidencias=dist(('FILE','REFERENCE','NOTE','OTHER'),self.evidence['tipo']) if auditor else None,
+            auditorias_completadas=ratio(int(self.audit['estado']=='COMPLETED'),1,auditor),
+            hallazgos_cerrados=ratio(int(self.finding['estado']=='CLOSED'),1,auditor),
+            rondas_resueltas=ratio(int(self.approval['estado'] in {'APPROVED','REJECTED','CHANGES_REQUESTED'}),1),
+            documentos_con_version=ratio(1,1,self.role!='APROBADOR'))
+        alerts=[]
+        if auditor and self.audit['estado'] in {'IN_PROGRESS','IN_REVIEW'} and self.finding['estado'] in {'OPEN','IN_PROGRESS','PENDING_VERIFICATION'}:
+            alerts.append(dict(clave='HALLAZGO_PENDIENTE:hallazgo:1',tipo='HALLAZGO_PENDIENTE',severidad='WARNING',
+                titulo='Hallazgo sin resolver',descripcion='Hallazgo pendiente en auditoría activa.',nombre=self.finding['titulo'],
+                recurso='hallazgo',recurso_id=1,fecha='2026-10-01T00:00:00',destino=dict(pagina='hallazgo',id=1)))
+        if self.approval['estado'] in {'PENDING','IN_REVIEW'}:
+            alerts.append(dict(clave='RONDA_PENDIENTE:aprobacion:1',tipo='RONDA_PENDIENTE',severidad='INFO',
+                titulo='Ronda pendiente registrada',descripcion='Consulta las acciones disponibles en el detalle.',nombre=self.document['titulo'],
+                recurso='aprobacion',recurso_id=1,fecha='2026-10-01T00:00:00',destino=dict(pagina='aprobacion',id=1)))
+        query=parse_qs(request.get('query',''))
+        for key in ('tipo','severidad'):
+            if key in query:alerts=[a for a in alerts if a[key]==query[key][0]]
+        limit=int(query.get('limit',['10'])[0]);offset=int(query.get('offset',['0'])[0])
+        alert_page=dict(total=len(alerts),limit=limit,offset=offset,items=alerts[offset:offset+limit])
+        activity=dict(total=0,limit=limit,offset=offset,items=[])
+        summary=dict(generado_en='2026-10-01T00:00:00',indicadores=indicators,alertas=alert_page,actividad=activity)
+        data={'resumen':summary,'indicadores':indicators,'alertas':alert_page,'actividad':activity}[request['path'].rsplit('/',1)[-1]]
+        return 200,data,{'Cache-Control':'no-store'}
 
     def answer_approvals(self, request):
         if not hasattr(self, 'approval'):

@@ -79,7 +79,8 @@ def test_navigation_and_allowed_auxiliary_calls(frontend,role,modules,create_doc
     assert ('href="index.php?pagina=auditorias"' in r.text) == modules
     assert ('href="index.php?pagina=evidencias"' in r.text) == modules
     assert sum(req['path']=='/api/v1/auth/me' for req in api.requests)==1
-    assert any(req['path']=='/api/v1/auditorias' for req in api.requests)==modules
+    assert sum(req['path']=='/api/v1/dashboard/resumen' for req in api.requests)==1
+    assert not any(req['path'] in {'/api/v1/auditorias','/api/v1/documentos','/api/v1/areas'} for req in api.requests)
     assert not any(req['path']=='/api/v1/usuarios' for req in api.requests)
     r = c.get('/index.php?pagina=documentos')
     assert ('href="index.php?pagina=documento_nuevo"' in r.text) == create_doc

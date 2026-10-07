@@ -15,6 +15,7 @@ from app.routers.catalogos import router as catalogos_router
 from app.routers.auditorias import router as auditorias_router
 from app.routers.hallazgos import router as hallazgos_router
 from app.routers.aprobaciones import router as aprobaciones_router
+from app.routers.dashboard import router as dashboard_router
 from app.routers.auth import router as auth_router
 from app.core.security import validate_jwt_config
 from app.services.login_protection import AuthResponseMiddleware
@@ -59,6 +60,7 @@ app.include_router(catalogos_router, prefix=settings.api_v1_prefix)
 app.include_router(auditorias_router, prefix=settings.api_v1_prefix)
 app.include_router(hallazgos_router, prefix=settings.api_v1_prefix)
 app.include_router(aprobaciones_router, prefix=settings.api_v1_prefix)
+app.include_router(dashboard_router, prefix=settings.api_v1_prefix)
 app.include_router(auth_router, prefix=settings.api_v1_prefix)
 app.include_router(account_access_router, prefix=settings.api_v1_prefix)
 app.add_middleware(ActionAdmissionMiddleware)

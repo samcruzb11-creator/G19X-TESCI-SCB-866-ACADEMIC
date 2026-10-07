@@ -1,24 +1,29 @@
 <?php
+declare(strict_types=1);
 if (!isset($route)) { http_response_code(404); exit; }
-$documentResult = api_get('/api/v1/documentos', ['limit' => 100]);
-$auditResult = can_show_action('auditorias') ? api_get('/api/v1/auditorias') : ['ok' => true, 'data' => []];
-$areaResult = api_get('/api/v1/areas');
-$allDocuments = $documentResult['data'];
-$areaNames = areas_by_id($areaResult['data']);
-$currentVersions = count(array_filter($allDocuments, fn(array $doc): bool => positive_id($doc['version_vigente_id'] ?? null) !== null));
-$activeAreas = count(array_filter($areaResult['data'], fn(array $area): bool => ($area['activa'] ?? false) === true));
-$metrics = [
-    ['label' => 'Documentos registrados', 'value' => $documentResult['ok'] ? count($allDocuments) : null, 'note' => 'En la consulta · hasta 100'],
-    ['label' => 'Auditorías registradas', 'value' => $auditResult['ok'] ? count($auditResult['data']) : null, 'note' => 'En la consulta · hasta 50'],
-    ['label' => 'Áreas activas', 'value' => $areaResult['ok'] ? $activeAreas : null, 'note' => 'Catálogo de áreas'],
-    ['label' => 'Con versión vigente', 'value' => $documentResult['ok'] ? $currentVersions : null, 'note' => 'De los documentos consultados'],
-];
-if (!can_show_action('auditorias')) unset($metrics[1]);
-if (user_has_role('APROBADOR')) unset($metrics[3]);
-$documents = $allDocuments;
-usort($documents, function (array $a, array $b): int {
-    $dateA = is_string($a['updated_at'] ?? null) ? $a['updated_at'] : '';
-    $dateB = is_string($b['updated_at'] ?? null) ? $b['updated_at'] : '';
-    return strcmp($dateB, $dateA) ?: ((positive_id($b['id'] ?? null) ?? 0) <=> (positive_id($a['id'] ?? null) ?? 0));
-});
-$documents = array_slice($documents, 0, 5);
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    header('Allow: GET');
+    throw new ApiPageError(405, 'Esta página admite únicamente consultas.');
+}
+header('Cache-Control: no-store');
+require_once __DIR__ . '/dashboard_helpers.php';
+if ($page === 'alertas') {
+    $alertOffset = dashboard_offset($_GET['offset'] ?? '0');
+    $alertFilters = ['limit' => 20, 'offset' => $alertOffset];
+    foreach (['tipo' => array_keys(dashboard_alert_types()), 'severidad' => ['INFO', 'WARNING']] as $key => $allowed) {
+        $value = $_GET[$key] ?? '';
+        if (!is_string($value) || ($value !== '' && !in_array($value, $allowed, true))) {
+            throw new ApiPageError(422, 'Filtro de alerta inválido.');
+        }
+        if ($value !== '') $alertFilters[$key] = $value;
+    }
+    $dashboardResult = api_get_object('/api/v1/dashboard/alertas', $alertFilters);
+    $alertData = $dashboardResult['ok'] ? $dashboardResult['data'] : null;
+} else {
+    // One transaction supplies counters, formulas, alerts and activity.
+    $dashboardResult = api_get_object('/api/v1/dashboard/resumen', ['limit' => 5]);
+    $dashboard = $dashboardResult['ok'] ? $dashboardResult['data'] : null;
+    $indicatorData = $dashboard['indicadores'] ?? [];
+    $alertData = $dashboard['alertas'] ?? null;
+    $activityData = $dashboard['actividad'] ?? null;
+}

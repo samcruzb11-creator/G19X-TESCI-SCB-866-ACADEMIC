@@ -32,6 +32,7 @@ $routes = [
     'login' => ['title' => 'Iniciar sesión', 'file' => 'login.php', 'nav' => ''],
     'logout' => ['title' => 'Cerrar sesión', 'file' => 'error.php', 'nav' => ''],
     'dashboard' => ['title' => 'Dashboard', 'file' => 'dashboard.php', 'nav' => 'dashboard'],
+    'alertas' => ['title' => 'Alertas', 'file' => 'dashboard_alertas.php', 'nav' => 'dashboard'],
     'documentos' => ['title' => 'Documentos', 'file' => 'documentos.php', 'nav' => 'documentos'],
     'auditorias' => ['title' => 'Auditorías', 'file' => 'auditorias.php', 'nav' => 'auditorias'],
     'auditoria_nueva' => ['title' => 'Nueva auditoría', 'file' => 'auditoria_nueva.php', 'nav' => 'auditorias'],
@@ -92,7 +93,7 @@ try {
         if (!$notFound && in_array($page,['aprobaciones','aprobacion','aprobacion_nueva'],true)) require __DIR__.'/services/aprobaciones_controller.php';
         if (!$notFound && in_array($page,['hallazgos','hallazgo','hallazgo_nuevo','hallazgo_editar'],true)) require __DIR__.'/services/hallazgos_controller.php';
         if (!$notFound && in_array($page, ['solicitudes_acceso', 'solicitud_acceso'], true)) require __DIR__ . '/services/access_requests_controller.php';
-        if (!$notFound && $page === 'dashboard') require __DIR__ . '/services/dashboard_controller.php';
+        if (!$notFound && in_array($page, ['dashboard','alertas'], true)) require __DIR__ . '/services/dashboard_controller.php';
         if (!$notFound && $page === 'documentos') require __DIR__ . '/services/documentos_controller.php';
         if (!$notFound && $page === 'documento') {
             require __DIR__ . '/services/documento_controller.php';

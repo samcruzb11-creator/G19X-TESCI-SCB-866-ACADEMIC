@@ -14,6 +14,11 @@ function public_auth_endpoint(string $path): bool
 /** Only known API resources may be addressed; never accept a client-supplied URL. */
 function api_url(string $path, array $query = []): ?string
 {
+    if (in_array($path, ['/api/v1/dashboard/resumen','/api/v1/dashboard/indicadores',
+        '/api/v1/dashboard/alertas','/api/v1/dashboard/actividad'], true)) {
+        $url = rtrim(API_BASE_URL, '/') . $path;
+        return $query === [] ? $url : $url . '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
+    }
     if (!preg_match('~\A/api/v1/(?:auth/(?:login|me|logout|access-requests|password-reset/(?:request|confirm)|initial-password/confirm)|access-requests(?:/[1-9][0-9]*(?:/(?:approve|reject|resend))?)?|areas|usuarios|aprobaciones(?:/(?:recursos|aprobadores|[1-9][0-9]*(?:/(?:iniciar|cancelar|finalizar|decision|decisiones|historial))?))?|auditorias(?:/[1-9][0-9]*(?:/(?:estado|historial))?)?|hallazgos(?:/[1-9][0-9]*(?:/(?:estado|evidencias|historial))?)?|evidencias(?:/(?:archivo|logica|[1-9][0-9]*(?:/descargar)?))?|documentos(?:/[1-9][0-9]*(?:/(?:historial|versiones(?:/[1-9][0-9]*/descargar)?))?)?)\z~', $path)) {
         return null;
     }
