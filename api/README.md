@@ -72,3 +72,12 @@ Cuatro GET bajo `/api/v1/dashboard`: resumen, indicadores, alertas y actividad.
 Usa schema **005**, sin migración 006. Porcentajes separados, null/NO_DATA con
 denominador cero y permisos de lectura/historial existentes. Mantener MySQL/InnoDB
 REPEATABLE READ para coherencia de la respuesta completa.
+
+Fase 7E: [análisis documental determinista y explicable](../docs/FASE_7E_ANALISIS_INTELIGENTE.md).
+Cuatro GET autenticados bajo `/api/v1/analisis`: resumen, anomalías, documentos/{id}
+y versiones/{id}. Reutiliza schema **005**, sin migración nueva ni servicios IA.
+Scope antes de comparar hashes, explicación por regla y barrera fresca de permisos.
+`ANALYSIS_SIMILARITY_THRESHOLD` configura similitud local (0.92 por defecto, 0.8–1).
+Storage/similitud acotados se consultan en detalle; 409 por cambio concurrente de
+alcance requiere una nueva consulta. Mantener REPEATABLE READ y capacidad en el
+pool para una segunda conexión de lectura por análisis.

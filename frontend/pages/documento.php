@@ -11,6 +11,7 @@ $currentVersionId = positive_id($document['version_vigente_id'] ?? null);
     <div><p class="eyebrow"><?= e($document['codigo'] ?? '') ?></p><h1><?= e($document['titulo'] ?? 'Documento') ?></h1><div class="document-tags"><span class="badge badge-<?= e($statusClass) ?>"><?= e($statusLabel) ?></span><?php if (is_string($document['tipo'] ?? null)): ?><span class="document-type"><?= e($document['tipo']) ?></span><?php endif; ?></div></div>
     <a class="button button-secondary" href="<?= e(page_url('documentos')) ?>">Volver a documentos</a>
 </div>
+<p><a class="text-link" href="<?= e(page_url('analisis', ['documento_id'=>$documentId])) ?>">Analizar documento y versiones autorizadas</a></p>
 <?php if (is_string($successMessage)): ?><div class="notice notice-success" role="status"><?= e($successMessage) ?></div><?php endif; ?>
 <?php if ($downloadError !== null): ?><div class="notice notice-error" role="alert"><?= e($downloadError) ?></div><?php endif; ?>
 <section class="panel audit-list"><div class="panel-heading"><h2>Aprobaciones del documento</h2></div><?php require __DIR__.'/aprobaciones_list.php'; ?><div class="upload-body form-actions"><a class="text-link" href="<?= e(page_url('aprobaciones',['documento_id'=>$documentId])) ?>">Ver todas las rondas</a><?php if (can_show_action('aprobacion_gestionar')): ?><a class="button button-secondary" href="<?= e(page_url('aprobacion_nueva',['documento_id'=>$documentId])) ?>">Crear ronda de aprobación</a><?php endif; ?></div></section>

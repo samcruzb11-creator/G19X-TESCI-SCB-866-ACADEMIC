@@ -216,3 +216,11 @@ ofrece filtros/paginación y enlaces autorizados. KPI y severidad nunca se calcu
 en PHP/JavaScript. Errores no fabrican ceros; sin datos se indica explícitamente.
 JWT en sesión PHP, escaping y CSRF existentes conservados. Vista móvil de una
 columna validada a 1440/390/320 px; actividad según permisos de historial.
+
+Fase 7E: [Análisis documental y anomalías explicables](../docs/FASE_7E_ANALISIS_INTELIGENTE.md).
+Vista `analisis` con resumen, filtros, paginación, «¿Por qué se marcó?» y enlaces
+autorizados. Filtrar por documento abre comprobaciones locales limitadas de
+storage/similitud; no es un certificado de cumplimiento. Dashboard y documento
+enlazan a esta vista; las alertas operativas de 7D permanecen diferenciadas.
+JWT solo en sesión PHP, escaping y GET-only. El transporte preserva BIGINT como
+string; no emite enlaces a detalles antiguos que excedan el rango entero de PHP.

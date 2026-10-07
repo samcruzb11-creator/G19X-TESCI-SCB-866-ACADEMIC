@@ -40,6 +40,7 @@ function can_show_action(string $action): bool
 function navigation_items(): array
 {
     $items = ['dashboard' => 'Dashboard'];
+    if (can_show_action('documentos')) $items['analisis'] = 'Análisis';
     if (can_show_action('aprobaciones')) $items['aprobaciones'] = 'Aprobaciones';
     if (can_show_action('solicitudes_acceso')) $items['solicitudes_acceso'] = 'Solicitudes de acceso';
     foreach (['documentos' => 'Documentos', 'auditorias' => 'Auditorías', 'hallazgos'=>'Hallazgos', 'evidencias' => 'Evidencias'] as $key => $label) {

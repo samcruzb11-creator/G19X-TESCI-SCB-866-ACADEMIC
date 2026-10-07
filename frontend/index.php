@@ -16,6 +16,7 @@ require_once __DIR__ . '/includes/form_fields.php';
 require_once __DIR__ . '/includes/list_filters.php';
 
 $routes = [
+    'analisis' => ['title'=>'Análisis documental','file'=>'analisis.php','nav'=>'analisis'],
     'aprobaciones' => ['title'=>'Aprobaciones','file'=>'aprobaciones.php','nav'=>'aprobaciones'],
     'aprobacion' => ['title'=>'Detalle de aprobación','file'=>'aprobaciones.php','nav'=>'aprobaciones'],
     'aprobacion_nueva' => ['title'=>'Nueva ronda de aprobación','file'=>'aprobaciones.php','nav'=>'aprobaciones'],
@@ -77,6 +78,7 @@ try {
         require __DIR__ . '/services/public_auth_controller.php';
     } else {
         require_login();
+        if ($page === 'analisis' && !can_show_action('documentos')) throw new ApiPageError(403, 'No tiene permiso para consultar documentos.');
         $action = [
             'aprobaciones'=>'aprobaciones', 'aprobacion'=>'aprobaciones', 'aprobacion_nueva'=>'aprobacion_gestionar',
             'hallazgos'=>'hallazgos', 'hallazgo'=>'hallazgos',
@@ -94,6 +96,7 @@ try {
         if (!$notFound && in_array($page,['hallazgos','hallazgo','hallazgo_nuevo','hallazgo_editar'],true)) require __DIR__.'/services/hallazgos_controller.php';
         if (!$notFound && in_array($page, ['solicitudes_acceso', 'solicitud_acceso'], true)) require __DIR__ . '/services/access_requests_controller.php';
         if (!$notFound && in_array($page, ['dashboard','alertas'], true)) require __DIR__ . '/services/dashboard_controller.php';
+        if (!$notFound && $page === 'analisis') require __DIR__ . '/services/analisis_controller.php';
         if (!$notFound && $page === 'documentos') require __DIR__ . '/services/documentos_controller.php';
         if (!$notFound && $page === 'documento') {
             require __DIR__ . '/services/documento_controller.php';

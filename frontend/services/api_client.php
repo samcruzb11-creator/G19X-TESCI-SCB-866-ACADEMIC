@@ -14,6 +14,10 @@ function public_auth_endpoint(string $path): bool
 /** Only known API resources may be addressed; never accept a client-supplied URL. */
 function api_url(string $path, array $query = []): ?string
 {
+    if (preg_match('~\A/api/v1/analisis/(?:resumen|anomalias|(?:documentos|versiones)/[1-9][0-9]{0,19})\z~', $path)) {
+        $url = rtrim(API_BASE_URL, '/') . $path;
+        return $query === [] ? $url : $url . '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
+    }
     if (in_array($path, ['/api/v1/dashboard/resumen','/api/v1/dashboard/indicadores',
         '/api/v1/dashboard/alertas','/api/v1/dashboard/actividad'], true)) {
         $url = rtrim(API_BASE_URL, '/') . $path;
@@ -102,7 +106,7 @@ function api_request(string $method, string $path, array $query = [], ?array $mu
         } elseif ($status === 204) {
             $result = ['ok' => true, 'status' => 204, 'data' => [], 'message' => ''];
         } else {
-            $data = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+            $data = json_decode($body, true, 512, JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING);
             $result = is_array($data) ? ['ok' => true, 'status' => $status, 'data' => $data, 'message' => ''] : api_failure();
             if ($totalCount !== null) $result['total'] = $totalCount;
         }

@@ -1,5 +1,6 @@
 <?php if (!isset($route)) { http_response_code(404); exit; } ?>
 <div class="page-heading"><div><p class="eyebrow">TRAZABILIDAD Y SEGUIMIENTO</p><h1>Resumen ejecutivo</h1><p class="page-description">Indicadores calculados sobre los recursos autorizados para tu cuenta.</p></div><a class="button button-secondary" href="<?= e(page_url('dashboard')) ?>">Actualizar resumen</a></div>
+<?php if (can_show_action('documentos')): ?><section class="panel document-section"><div class="panel-heading"><div><h2>Análisis documental</h2><p>Coincidencias binarias, metadatos y relaciones documentales explicables. Se consulta por separado de las alertas operativas.</p></div><a class="text-link" href="<?= e(page_url('analisis')) ?>">Consultar anomalías documentales</a></div></section><?php endif; ?>
 <?php if (!$dashboardResult['ok']): ?>
 <div class="notice" role="status"><h2>Información no disponible</h2><p><?= e($dashboardResult['message']) ?></p><p>No se presentan valores mientras el resumen no está disponible.</p></div>
 <?php else: ?>

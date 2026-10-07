@@ -263,3 +263,9 @@ select:disabled { background: #f3f5f7; color: var(--muted); }
 .approval-assignments { margin-top: 20px; padding: 16px; border: 1px solid var(--line); }
 .approval-assignments label { display: flex; align-items: center; gap: 10px; margin-block: 12px; overflow-wrap: anywhere; }
 .approval-assignments input { flex: 0 0 auto; width: auto; }
+/* Documentary analysis uses the existing sober dashboard layout. */
+.analysis-items details { margin-top: .75rem; overflow-wrap: anywhere; }
+.analysis-items summary { cursor: pointer; font-weight: 600; }
+.analysis-items details li { display: list-item; padding: .25rem 0; border: 0; }
+.analysis-actions { display: flex; flex-direction: column; gap: .75rem; }
+.analysis-items > li > div { min-width: 0; overflow-wrap: anywhere; }
