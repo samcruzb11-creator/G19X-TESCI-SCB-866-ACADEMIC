@@ -29,12 +29,15 @@ def no_database(monkeypatch):
 @pytest.fixture(params=["version", "evidence"])
 def operation(request, tmp_path):
     storage = StorageService(tmp_path)
-    actor = Usuario(id=1, nombre="Test", correo="test@example.invalid", rol="ADMIN")
+    actor = Usuario(id=1, nombre="Test", correo="test@example.invalid", rol="ADMIN", activo=True)
     doc = Documento(id=1, estado="DRAFT")
     audit = Auditoria(id=1, estado="PLANNED")
     db = Mock()
     db.get.side_effect = lambda model, id: actor if model is Usuario else audit if model is Auditoria else doc
-    db.scalar.side_effect = [doc, 0]
+    def scalar(statement):
+        entity = statement.column_descriptions[0].get('entity')
+        return actor if entity is Usuario else audit if entity is Auditoria else doc if entity is Documento else 0
+    db.scalar.side_effect = scalar
     pending, persisted = [], []
     db.add.side_effect = pending.append
 

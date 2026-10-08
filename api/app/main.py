@@ -1,7 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
@@ -23,6 +23,27 @@ from app.services.login_protection import AuthResponseMiddleware
 from app.routers.account_access import router as account_access_router
 from app.services.auth_action_protection import ActionAdmissionMiddleware
 from app.services import turnstile
+from app.services.database_admission import AdmissionFull, DatabaseAdmissionMiddleware
+from app.services.request_body_limit import RequestBodyLimitMiddleware
+from app.db.session import engine
+
+
+sql_admission = DatabaseAdmissionMiddleware(None,
+    capacity=engine.pool.size() + max(0, engine.pool._max_overflow), prefix=settings.api_v1_prefix)
+
+
+async def database_admission(request: Request):
+    if not request.url.path.startswith(settings.api_v1_prefix.rstrip('/') + '/'):
+        yield
+        return
+    try:
+        # FastAPI parses the body before dependencies: incomplete multipart
+        # receives cannot monopolize SQL slots. Cleanup closes get_db first.
+        async with sql_admission.acquire():
+            yield
+    except AdmissionFull:
+        raise HTTPException(status_code=503, detail='Servicio ocupado; intente nuevamente',
+                            headers={'Cache-Control': 'no-store', 'Retry-After': '1'})
 
 
 @asynccontextmanager
@@ -31,11 +52,15 @@ async def lifespan(application: FastAPI):
     # serving HTTP requires valid cryptographic configuration before startup.
     validate_jwt_config()
     turnstile.validate_turnstile_config()
-    yield
+    try:
+        yield
+    finally:
+        sql_admission.release_loop()
 
 # Filesystem/driver failures must use the sanitized handler even in local mode.
 # Starlette's HTTP debug mode otherwise bypasses it and returns tracebacks.
-app = FastAPI(title=settings.app_name, debug=False, lifespan=lifespan)
+app = FastAPI(title=settings.app_name, debug=False, lifespan=lifespan,
+              dependencies=[Depends(database_admission)])
 logger = logging.getLogger(__name__)
 
 
@@ -67,6 +92,14 @@ app.include_router(auth_router, prefix=settings.api_v1_prefix)
 app.include_router(account_access_router, prefix=settings.api_v1_prefix)
 app.add_middleware(ActionAdmissionMiddleware)
 app.add_middleware(AuthResponseMiddleware)
+# Organization-wide window scans compete for MySQL's shared temporary-table
+# memory. Measured parallel scans spill and stall despite a healthy SQL pool.
+# Queue them asynchronously before the general SQL gate; ordinary reads remain
+# available while at most two scans execute in this process.
+app.add_middleware(DatabaseAdmissionMiddleware,
+    capacity=min(2, engine.pool.size() + max(0, engine.pool._max_overflow)),
+    prefix=settings.api_v1_prefix + '/analisis')
+app.add_middleware(RequestBodyLimitMiddleware)
 
 
 @app.exception_handler(turnstile.ChallengeRequired)
@@ -80,7 +113,11 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
     if request.url.path.startswith(settings.api_v1_prefix + "/auth/"):
         # Pydantic errors can contain raw input, including passwords.
         return JSONResponse(status_code=422, content={"detail": "Solicitud de autenticacion invalida"})
-    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
+    # Raw invalid input can contain deeply nested JSON, secrets or megabytes of
+    # text. Return the field, reason and error type without echoing that input.
+    errors = [{key: error[key] for key in ('loc', 'msg', 'type') if key in error}
+              for error in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(errors)})
 
 
 @app.exception_handler(Exception)

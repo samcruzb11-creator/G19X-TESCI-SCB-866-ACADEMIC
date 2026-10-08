@@ -12,6 +12,7 @@ from app.models.auth import AuthSession
 from app.models.entities import Usuario
 from app.schemas.auth import CurrentUserResponse, LoginRequest, TokenResponse
 from app.services import login_protection
+from app.services.authorization_service import ROLES
 
 router = APIRouter(prefix="/auth", tags=["autenticacion"])
 
@@ -25,10 +26,11 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
         user_id = user.id if user else None
         verified_hash = user.password_hash if user else DUMMY_HASH
         active = user.activo if user else False
+        canonical_role = user.rol in ROLES if user else False
         # End even the read transaction before expensive password verification.
         db.rollback()
         valid = verify_password(payload.password.get_secret_value(), verified_hash)
-        if user_id is None or not valid or not active:
+        if user_id is None or not valid or not active or not canonical_role:
             credential_failure = True
             raise unauthorized()
         # Argon2 runs before taking the lock. MySQL's locking read sees current
@@ -36,7 +38,7 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
         # the identity map. Every subsequent failure releases the lock via rollback.
         user = db.scalar(select(Usuario).where(Usuario.id == user_id).with_for_update()
                          .execution_options(populate_existing=True))
-        if user is None or not user.activo or user.password_hash != verified_hash:
+        if user is None or not user.activo or user.rol not in ROLES or user.password_hash != verified_hash:
             credential_failure = True
             raise unauthorized()
         issued = int(datetime.now(timezone.utc).timestamp())

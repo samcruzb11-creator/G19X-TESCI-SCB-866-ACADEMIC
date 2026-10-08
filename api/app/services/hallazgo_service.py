@@ -60,6 +60,10 @@ def lock_audit(db, user, audit_id, action):
         authz.auditoria_scope(user)).with_for_update().execution_options(populate_existing=True))
     if row is None:
         raise HTTPException(404, 'Recurso no encontrado')
+    actor = authz.lock_actor(db, user.id, action)
+    if db.scalar(select(Auditoria.id).where(Auditoria.id == audit_id,
+            authz.auditoria_scope(actor)).with_for_update()) is None:
+        raise HTTPException(404, 'Recurso no encontrado')
     if row.estado not in {'IN_PROGRESS', 'IN_REVIEW'}:
         raise HTTPException(409, 'Los hallazgos requieren una auditoria activa o en revision')
     return row

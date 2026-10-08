@@ -1,10 +1,12 @@
 """Deny-by-default authorization, expressed as reusable SQL scopes."""
 from fastapi import HTTPException
-from sqlalchemy import select, exists, true, false, and_, or_
+from sqlalchemy import select, exists, true, false, and_, or_, cast, String, type_coerce
+from sqlalchemy.dialects import mysql
 from app.models.entities import (Auditoria, Documento, DocumentoAuditoria, VersionDocumento,
                                 Evidencia, Hallazgo, RondaAprobacion, DecisionAprobacion, Usuario)
 
 AUDITORES = {'AUDITOR_INTERNO', 'AUDITOR_EXTERNO'}
+ROLES = frozenset({'ADMIN', *AUDITORES, 'RESPONSABLE_AREA', 'APROBADOR'})
 PERMISSIONS = {
     'auditoria.read': AUDITORES, 'auditoria.create': {'AUDITOR_INTERNO'},
     'auditoria.update': set(), 'auditoria.transition': set(), 'auditoria.history': set(),
@@ -48,8 +50,22 @@ def ronda_scope(user):
         approval_version_scope(user)).correlate_except(VersionDocumento))
 
 def require_permission(user: Usuario, action: str) -> None:
-    if action not in PERMISSIONS or (user.rol != 'ADMIN' and user.rol not in PERMISSIONS[action]):
+    if not user.activo or action not in PERMISSIONS or (user.rol != 'ADMIN' and user.rol not in PERMISSIONS[action]):
         raise HTTPException(403, 'Operacion no permitida')
+
+
+def lock_actor(db, user_id, action):
+    """Recheck committed credentials after waiting on the domain resource lock.
+
+    A shared row lock keeps deactivation/role changes serialized with the write.
+    Authentication's earlier REPEATABLE READ snapshot must not grant stale rights.
+    """
+    actor = db.scalar(select(Usuario).where(Usuario.id == user_id).with_for_update(read=True)
+                      .execution_options(populate_existing=True))
+    if actor is None:
+        raise HTTPException(403, 'Operacion no permitida')
+    require_permission(actor, action)
+    return actor
 
 def auditoria_scope(user: Usuario):
     if user.rol == 'ADMIN':
@@ -138,8 +154,12 @@ def authorize_document_update(user, document, payload):
     if user.rol != 'ADMIN' and 'responsable_id' in payload.model_fields_set and payload.responsable_id != user.id:
         raise HTTPException(403, 'Reasignacion reservada a ADMIN')
 
+def exact_role(column):
+    return type_coerce(cast(column, String(30).with_variant(mysql.BINARY(), 'mysql')), String(30))
+
+
 def eligible_users_scope():
-    return and_(Usuario.activo.is_(True), Usuario.rol.in_(AUDITORES))
+    return and_(Usuario.activo.is_(True), exact_role(Usuario.rol).in_(AUDITORES))
 
 def authorize_audit_create(db, user, payload):
     require_permission(user, 'auditoria.create')
@@ -155,7 +175,11 @@ def authorize_evidence_references(db, user, audit_id, document_id, version_id):
         auditoria_scope(user)).with_for_update().execution_options(populate_existing=True))
     if audit is None:
         raise HTTPException(404, 'Recurso no encontrado')
-    if audit.estado in {'COMPLETED', 'CANCELLED'}:
+    user = lock_actor(db, user.id, 'evidencia.create')
+    if db.scalar(select(Auditoria.id).where(Auditoria.id == audit_id,
+            auditoria_scope(user)).with_for_update()) is None:
+        raise HTTPException(404, 'Recurso no encontrado')
+    if audit.estado not in {'PLANNED', 'IN_PROGRESS', 'IN_REVIEW'}:
         raise HTTPException(409, 'La auditoria no admite nuevas evidencias')
     if version_id is not None:
         version = db.get(VersionDocumento, version_id)

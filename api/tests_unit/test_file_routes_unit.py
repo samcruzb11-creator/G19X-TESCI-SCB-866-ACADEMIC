@@ -29,8 +29,11 @@ def client(tmp_path, monkeypatch):
     doc = Documento(id=1, codigo='TEST', titulo='Test document', tipo='TEST', estado='ACTIVE', area_id=1, responsable_id=1, created_by_id=1, created_at=stamp, updated_at=stamp, version_vigente_id=1, version_vigente=version)
     evidence = Evidencia(id=1, auditoria_id=1, tipo='FILE', titulo='Test evidence', storage_key=stored.storage_key, nombre_original='test.txt', mime_type='text/plain', tamano_bytes=7, sha256=stored.sha256, registrada_por_id=1, created_at=stamp, updated_at=stamp)
     db = Mock()
+    db.scalar.return_value.estado = 'PLANNED'
+    actor = Usuario(id=1, rol='ADMIN', activo=True)
+    db.scalar.side_effect = lambda statement: actor if statement.column_descriptions[0].get('entity') is Usuario else db.scalar.return_value
     app.dependency_overrides[get_db] = lambda: db
-    app.dependency_overrides[current_user] = lambda: Usuario(id=1, rol="ADMIN")
+    app.dependency_overrides[current_user] = lambda: actor
     monkeypatch.setattr(documentos, 'storage_service', storage)
     monkeypatch.setattr(evidencias, 'storage_service', storage)
     try:

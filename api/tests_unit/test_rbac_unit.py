@@ -172,8 +172,8 @@ def test_document_create_update_upload_actor_and_denials(rbac,monkeypatch):
     assert r.status_code==200,r.text
     assert r.json()['updated_by_id']==4
     assert c.patch('/api/v1/documentos/2',json={'titulo':'Changed'}).status_code==404
-    for value in [7,None]:
-        assert c.patch('/api/v1/documentos/1',json={'responsable_id':value}).status_code==403
+    assert c.patch('/api/v1/documentos/1',json={'responsable_id':7}).status_code==403
+    assert c.patch('/api/v1/documentos/1',json={'responsable_id':None}).status_code==422
     r=c.post('/api/v1/documentos/1/versiones',data={'subido_por_id':7},files={'archivo':('new.txt',b'new')})
     assert r.status_code==201,r.text
     assert r.json()['subido_por_id']==4

@@ -6,9 +6,12 @@ Sincronizados con ``api/app/models/entities.py`` (SQLAlchemy 2.x, MySQL 8.0).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+
+MAX_ID = 18446744073709551615
+DocumentState = Literal['DRAFT', 'ACTIVE', 'OBSOLETE', 'ARCHIVED']
 
 # ---------------------------------------------------------------------------
 # Allowed literal sets (mirror CHECK constraints in entities.py)
@@ -85,7 +88,11 @@ class DocumentoBase(BaseModel):
 class DocumentoCreate(DocumentoBase):
     """Esquema para registrar un nuevo documento (sin archivo aún)."""
 
-    pass
+    model_config = ConfigDict(extra='forbid')
+    estado: DocumentState = 'DRAFT'
+    descripcion: str | None = Field(default=None, max_length=16000)
+    area_id: int = Field(gt=0, le=MAX_ID, strict=True)
+    responsable_id: int = Field(gt=0, le=MAX_ID, strict=True)
 
 
 class DocumentoUpdate(BaseModel):
@@ -98,17 +105,25 @@ class DocumentoUpdate(BaseModel):
         Annotated[str, StringConstraints(min_length=3, max_length=240, strip_whitespace=True)]
         | None
     ) = None
-    descripcion: str | None = None
+    model_config = ConfigDict(extra='forbid')
+    descripcion: str | None = Field(default=None, max_length=16000)
     tipo: (
         Annotated[str, StringConstraints(min_length=2, max_length=40, strip_whitespace=True)]
         | None
     ) = None
-    estado: str | None = Field(
+    estado: DocumentState | None = Field(
         default=None,
         description=f"Nuevo estado. Permitidos: {sorted(ESTADOS_DOCUMENTO)}",
     )
-    area_id: int | None = None
-    responsable_id: int | None = None
+    area_id: int | None = Field(default=None, gt=0, le=MAX_ID, strict=True)
+    responsable_id: int | None = Field(default=None, gt=0, le=MAX_ID, strict=True)
+
+    @model_validator(mode='after')
+    def required_patch_fields(self):
+        for name in ('titulo', 'tipo', 'estado', 'area_id', 'responsable_id'):
+            if name in self.model_fields_set and getattr(self, name) is None:
+                raise ValueError('Campo obligatorio no admite null')
+        return self
 
 
 class DocumentoRead(DocumentoBase):

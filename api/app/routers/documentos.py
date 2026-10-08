@@ -3,9 +3,10 @@
 from typing import Annotated
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Path as PathParam, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload, raiseload
 
 from app.db.session import get_db
@@ -14,6 +15,7 @@ from app.models.entities import Usuario
 from app.services import authorization_service as authz
 from app.models.entities import Documento, EventoAuditoria, VersionDocumento
 from app.schemas.documento import (
+    MAX_ID,
     DocumentoDetalleRead,
     DocumentoListRead,
     DocumentoCreate,
@@ -47,6 +49,9 @@ def crear_documento(
         return documento_service.crear_documento(db, payload, user.id, client_info=_client_info(request))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, 'Conflicto de integridad; recargue antes de continuar') from None
 
 
 @router.get("", response_model=list[DocumentoListRead])
@@ -54,7 +59,7 @@ def listar_documentos(
     tipo: str | None = None,
     estado: str | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Annotated[int, Query(ge=0, le=10000)] = 0,
     user: Usuario = Depends(current_user),
     db: Session = Depends(get_db),
 ):
@@ -71,7 +76,7 @@ def listar_documentos(
 
 @router.get("/{documento_id}", response_model=DocumentoDetalleRead, response_model_exclude_unset=True)
 def obtener_documento(
-    documento_id: int,
+    documento_id: Annotated[int, PathParam(gt=0, le=MAX_ID)],
     incluir_versiones: bool = False,
     user: Usuario = Depends(current_user),
     db: Session = Depends(get_db),
@@ -95,7 +100,7 @@ def obtener_documento(
 
 @router.patch("/{documento_id}", response_model=DocumentoRead)
 def actualizar_documento(
-    documento_id: int,
+    documento_id: Annotated[int, PathParam(gt=0, le=MAX_ID)],
     payload: DocumentoUpdate,
     request: Request,
     user: Usuario = Depends(current_user),
@@ -111,11 +116,14 @@ def actualizar_documento(
     except ValueError as exc:
         code = 404 if "no encontrado" in str(exc).lower() else 400
         raise HTTPException(status_code=code, detail=str(exc)) from exc
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, 'Conflicto de integridad; recargue antes de continuar') from None
 
 
 @router.post("/{documento_id}/versiones", response_model=VersionDocumentoRead, status_code=201)
 def crear_version(
-    documento_id: int,
+    documento_id: Annotated[int, PathParam(gt=0, le=MAX_ID)],
     request: Request,
     archivo: Annotated[UploadFile, File()],
     comentario_cambio: Annotated[str | None, Form()] = None,
@@ -136,14 +144,14 @@ def crear_version(
 
 
 @router.get("/{documento_id}/versiones", response_model=list[VersionDocumentoListRead])
-def listar_versiones(documento_id: int, user: Usuario = Depends(current_user),
+def listar_versiones(documento_id: Annotated[int, PathParam(gt=0, le=MAX_ID)], user: Usuario = Depends(current_user),
     db: Session = Depends(get_db)):
     authz.resource(db, user, Documento, documento_id, 'version.read', authz.documento_scope)
     return list(db.scalars(select(VersionDocumento).where(VersionDocumento.documento_id == documento_id, authz.version_scope(user)).order_by(VersionDocumento.numero_version)).all())
 
 
 @router.get("/{documento_id}/versiones/{version_id}/descargar", response_class=FileResponse)
-def descargar_version(documento_id: int, version_id: int, user: Usuario = Depends(current_user),
+def descargar_version(documento_id: Annotated[int, PathParam(gt=0, le=MAX_ID)], version_id: Annotated[int, PathParam(gt=0, le=MAX_ID)], user: Usuario = Depends(current_user),
     db: Session = Depends(get_db)):
     authz.require_permission(user, 'version.read')
     version = db.scalar(select(VersionDocumento).where(
@@ -164,7 +172,7 @@ def descargar_version(documento_id: int, version_id: int, user: Usuario = Depend
 
 
 @router.get("/{documento_id}/historial", response_model=list[EventoAuditoriaRead])
-def historial_documento(documento_id: int, user: Usuario = Depends(current_user),
+def historial_documento(documento_id: Annotated[int, PathParam(gt=0, le=MAX_ID)], user: Usuario = Depends(current_user),
     db: Session = Depends(get_db)):
     authz.require_permission(user, 'historial.read')
     if db.get(Documento, documento_id) is None:

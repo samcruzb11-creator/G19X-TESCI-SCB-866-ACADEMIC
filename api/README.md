@@ -79,5 +79,27 @@ y versiones/{id}. Reutiliza schema **005**, sin migración nueva ni servicios IA
 Scope antes de comparar hashes, explicación por regla y barrera fresca de permisos.
 `ANALYSIS_SIMILARITY_THRESHOLD` configura similitud local (0.92 por defecto, 0.8–1).
 Storage/similitud acotados se consultan en detalle; 409 por cambio concurrente de
-alcance requiere una nueva consulta. Mantener REPEATABLE READ y capacidad en el
-pool para una segunda conexión de lectura por análisis.
+alcance requiere una nueva consulta. Mantener REPEATABLE READ. El análisis devuelve
+la conexión de su snapshot antes de abrir la transacción de autorización fresca.
+
+## Verificación Fase 8
+
+Las versiones documentales aplican `MAX_DOCUMENT_FILE_BYTES` (20 MiB por defecto)
+en streaming; `MAX_EVIDENCE_FILE_BYTES` conserva el límite de evidencias.
+La recepción completa del multipart se limita al máximo del archivo más 128 KiB
+para metadatos; JSON y otras solicitudes mutativas admiten hasta 1 MiB. Se cuentan
+los bytes recibidos incluso sin `Content-Length`, antes de expandir el contenido.
+Los límites PHP pueden ser más restrictivos. La configuración `STORAGE_PATH`
+no permite redirigir el storage real; las pruebas inyectan `StorageService`
+con una raíz temporal explícita.
+
+La publicación atómica usa enlaces físicos para rechazar colisiones sin sobrescribir
+archivos; el filesystem del storage debe admitirlos (NTFS/ext4). La admisión asíncrona
+limita el trabajo SQL a la capacidad del pool antes de ocupar workers síncronos.
+La admisión SQL ocurre después de leer el cuerpo para que uploads incompletos
+no reserven conexiones ni impidan atender otras consultas.
+El análisis admite dos consultas simultáneas por proceso para evitar contención
+de temporales MySQL; ambas admisiones mantienen una cola acotada.
+
+Las regresiones integrales y el benchmark se documentan en
+[FASE_8_QA_SEGURIDAD_RENDIMIENTO.md](../docs/FASE_8_QA_SEGURIDAD_RENDIMIENTO.md).

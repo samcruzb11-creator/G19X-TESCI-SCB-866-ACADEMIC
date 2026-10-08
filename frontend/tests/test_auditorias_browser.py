@@ -7,7 +7,7 @@ from test_auth_browser import chromium, evaluate
 
 def wait(cdp, expression):
     deadline=time.monotonic()+10
-    while not evaluate(cdp,expression):
+    while not evaluate(cdp,"document.readyState==='complete' && ("+expression+")"):
         assert time.monotonic()<deadline,'Audit page did not render'
         time.sleep(.05)
 

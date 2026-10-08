@@ -10,6 +10,7 @@ from app.core.security import decode_token, validate_jwt_config
 from app.db.session import get_db
 from app.models.auth import AuthSession
 from app.models.entities import Usuario
+from app.services.authorization_service import ROLES
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -50,7 +51,7 @@ def current_auth(
             or session.expires_at != datetime.fromtimestamp(claims["exp"], timezone.utc).replace(tzinfo=None)):
         raise unauthorized()
     user = db.get(Usuario, session.usuario_id)
-    if user is None or not user.activo:
+    if user is None or not user.activo or user.rol not in ROLES:
         raise unauthorized()
     return AuthContext(user, session)
 

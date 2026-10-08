@@ -38,6 +38,11 @@ def resource(db, user, audit_id, *, action='auditoria.read', locking=False):
     row = db.scalar(stmt)
     if row is None:
         raise HTTPException(404, 'Recurso no encontrado')
+    if locking:
+        actor = authz.lock_actor(db, user.id, action)
+        if db.scalar(select(Auditoria.id).where(Auditoria.id == audit_id,
+                authz.auditoria_scope(actor)).with_for_update()) is None:
+            raise HTTPException(404, 'Recurso no encontrado')
     return row
 
 
@@ -132,6 +137,7 @@ def transaction(db, operation):
 def create(db, user, payload):
     def operation():
         authz.authorize_audit_create(db, user, payload)
+        authz.lock_actor(db, user.id, 'auditoria.create')
         row = Auditoria(**payload.model_dump(exclude={'created_by_id'}),
                         created_by_id=user.id, estado='PLANNED')
         db.add(row)

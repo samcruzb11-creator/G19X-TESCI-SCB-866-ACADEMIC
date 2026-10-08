@@ -16,11 +16,13 @@ Gestión de errores:
 from __future__ import annotations
 
 from typing import Any, BinaryIO
+from fastapi import HTTPException
+from app.core.config import settings
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.entities import Documento, EventoAuditoria, Usuario, VersionDocumento
+from app.models.entities import Area, Documento, EventoAuditoria, Usuario, VersionDocumento
 from app.services import authorization_service as authz
 from app.schemas.documento import DocumentoCreate, DocumentoUpdate
 from app.services.storage_service import StorageService, storage_service
@@ -50,6 +52,12 @@ def _require_usuario(db: Session, usuario_id: int, rol: str | None = None) -> Us
             f"El usuario {usuario_id} tiene rol '{usuario.rol}', se requiere '{rol}'"
         )
     return usuario
+
+
+def _validate_references(db, payload):
+    for model, field in ((Area, 'area_id'), (Usuario, 'responsable_id')):
+        if field in payload.model_fields_set and db.get(model, getattr(payload, field)) is None:
+            raise HTTPException(404, 'Referencia no encontrada')
 
 
 def _log_evento(
@@ -116,12 +124,12 @@ class DocumentoService:
             ValueError: Si el código ya existe o el usuario no está registrado.
         """
         # Unicidad del código
-        authz.authorize_document_create(_require_usuario(db, creador_id), doc_in)
+        creador = authz.lock_actor(db, creador_id, 'documento.create')
+        authz.authorize_document_create(creador, doc_in)
+        _validate_references(db, doc_in)
         existente = db.scalar(select(Documento).where(Documento.codigo == doc_in.codigo))
         if existente:
             raise ValueError(f"Ya existe un documento con el código '{doc_in.codigo}'")
-
-        creador = _require_usuario(db, creador_id)
 
         documento = Documento(
             codigo=doc_in.codigo,
@@ -218,12 +226,14 @@ class DocumentoService:
             ValueError: Si el documento no existe o el usuario no existe.
             PermissionError: Si el estado destino no es válido.
         """
-        documento = db.get(Documento, documento_id)
+        documento = db.scalar(select(Documento).where(Documento.id == documento_id)
+                              .with_for_update().execution_options(populate_existing=True))
         if not documento:
             raise ValueError(f"Documento con ID {documento_id} no encontrado")
 
-        editor = _require_usuario(db, editor_id)
+        editor = authz.lock_actor(db, editor_id, 'documento.update')
         authz.authorize_document_update(editor, documento, doc_update)
+        _validate_references(db, doc_update)
 
         # Snapshot previo para la bitácora
         datos_anteriores = {
@@ -314,9 +324,9 @@ class DocumentoService:
         )
         if not documento:
             raise ValueError(f"Documento con ID {documento_id} no encontrado")
-        actor = _require_usuario(db, subido_por_id)
+        actor = authz.lock_actor(db, subido_por_id, 'version.create')
         authz.authorize_version_create(actor, documento)
-        if documento.estado in ("ARCHIVED", "OBSOLETE"):
+        if documento.estado not in {'DRAFT', 'ACTIVE'}:
             raise ValueError(
                 f"No se pueden agregar versiones a un documento en estado '{documento.estado}'"
             )
@@ -324,16 +334,27 @@ class DocumentoService:
 
         # Número de versión secuencial
         max_version = db.scalar(
-            select(func.max(VersionDocumento.numero_version)).where(
+            select(VersionDocumento.numero_version).where(
                 VersionDocumento.documento_id == documento_id
-            )
+            ).order_by(VersionDocumento.numero_version.desc()).limit(1).with_for_update()
         ) or 0
         nuevo_numero = max_version + 1
 
         # Escritura física en streaming + SHA-256
+        if comentario_cambio is not None and len(comentario_cambio) > 16000:
+            rollback_safely(db)
+            raise ValueError('Comentario demasiado largo')
+        class LimitedStream:
+            total = 0
+            def read(self, size=-1):
+                chunk = file_stream.read(size)
+                self.total += len(chunk)
+                if self.total > settings.max_document_file_bytes:
+                    raise ValueError('El archivo supera el limite de carga')
+                return chunk
         try:
             stored_file = self.storage.save_file(
-                file_stream=file_stream,
+                file_stream=LimitedStream(),
                 filename=filename,
                 content_type=content_type,
                 category="documents",

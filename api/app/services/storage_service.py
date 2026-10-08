@@ -1,7 +1,7 @@
 """Servicio de almacenamiento físico y cómputo criptográfico SHA-256 en streaming.
 
 Responsabilidades:
-- Guardar archivos en disco con escritura atómica (temp + rename).
+- Guardar archivos con escritura y publicación atómicas sin sobrescritura.
 - Calcular hash SHA-256 en bloques de 64 KB (sin saturar RAM).
 - Generar ``storage_key`` determinista/único con particionado por año/mes.
 - Exponer adaptadores para ``BinaryIO`` (tests) y ``UploadFile`` de FastAPI.
@@ -14,6 +14,7 @@ import hashlib
 import mimetypes
 import os
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import BinaryIO, NamedTuple
@@ -49,7 +50,7 @@ class StorageService:
 
     Diseño:
     - Particionado por ``{category}/{YYYY}/{MM}/{uuid4_hex}{ext}`` para escalar I/O.
-    - Escritura atómica: primero escribe a ``.tmp_{uuid}`` y luego hace ``rename()``.
+    - Escritura atómica: temporal exclusivo y publicación por enlace físico.
     - SHA-256 calculado en streaming durante la escritura (una sola pasada por el archivo).
     - Solo se compensan archivos nuevos de transacciones no confirmadas.
       Una interrupción de proceso puede dejar huérfanos: el verificador los informa.
@@ -71,8 +72,16 @@ class StorageService:
 
     def _sanitize_filename(self, filename: str) -> str:
         """Elimina rutas y caracteres peligrosos para prevenir path traversal."""
-        clean = Path(filename).name.strip()
-        return clean if clean else "archivo_sin_nombre"
+        clean = filename.replace('\\', '/').rsplit('/', 1)[-1].strip()
+        if (not clean or len(clean) > 255
+                or any(ord(c) < 32 or ord(c) == 127 for c in clean)
+                or re.search(r'%(?:00|0a|0d)', clean, re.IGNORECASE)):
+            raise ValueError('Nombre de archivo invalido')
+        # Both UUIDs plus '.tmp_' occupy 69 bytes. Validate the lowercased
+        # extension actually stored; Unicode lowercasing can expand its length.
+        if 69 + len(Path(clean).suffix.lower().encode('utf-8')) > 255:
+            raise ValueError('Extension de archivo demasiado larga')
+        return clean
 
     def _guess_mime_type(self, filename: str, explicit_mime: str | None) -> str:
         """Resuelve el MIME type priorizando el explícito si no es genérico."""
@@ -92,6 +101,11 @@ class StorageService:
         unique_filename = f"{file_uuid}{extension}"
         storage_key = f"{category}/{partition}/{unique_filename}"
         target_path = self.get_absolute_path(storage_key)
+        # This Windows installation rejects normal paths at MAX_PATH. Include
+        # the temporary suffix before creating anything, so input gets a client
+        # error instead of failing midway through storage with FileNotFoundError.
+        if os.name == 'nt' and len(str(target_path).encode('utf-16-le')) // 2 + 37 >= 260:
+            raise ValueError('Nombre de archivo demasiado largo para el almacenamiento')
         target_path.parent.mkdir(parents=True, exist_ok=True)
         return storage_key, target_path
 
@@ -121,6 +135,8 @@ class StorageService:
             OSError: Si el sistema de archivos no puede crear el archivo.
         """
         clean_name = self._sanitize_filename(filename)
+        if content_type and (len(content_type) > 127 or any(ord(c) < 32 or ord(c) == 127 for c in content_type)):
+            raise ValueError('Tipo de archivo invalido')
         mime_type = self._guess_mime_type(clean_name, content_type)
         extension = Path(clean_name).suffix.lower()
         storage_key, target_path = self._build_target_path(category, extension)
@@ -128,9 +144,11 @@ class StorageService:
         hasher = hashlib.sha256()
         total_bytes = 0
         temp_target = target_path.with_suffix(f"{extension}.tmp_{uuid4().hex}")
+        temp_created = False
 
         try:
-            with open(temp_target, "wb") as f_out:
+            with open(temp_target, "xb") as f_out:
+                temp_created = True
                 while True:
                     chunk = file_stream.read(self.chunk_size)
                     if not chunk:
@@ -148,11 +166,18 @@ class StorageService:
                 nombre_original=clean_name, absolute_path=str(target_path),
             )
 
-            # Rename atómico: nunca deja un archivo a medias en la ruta final
-            temp_target.replace(target_path)
+            # Publish a complete inode atomically without replacing an existing
+            # file, including an unexpected UUID collision or concurrent writer.
+            os.link(temp_target, target_path)
+            try:
+                temp_target.unlink()
+            except OSError:
+                # The published file is already complete. Keep its DB metadata
+                # and let verification report the redundant temporary link.
+                logger.error("storage: temporary cleanup failed; verification required")
 
         except Exception:
-            if temp_target.exists():
+            if temp_created and temp_target.exists():
                 try:
                     temp_target.unlink()
                 except OSError:
@@ -193,9 +218,9 @@ class StorageService:
         """
         if not storage_key:
             return False
-        target_path = (self.base_path / storage_key).resolve()
-        # Seguridad: la ruta resuelta debe permanecer dentro de base_path
-        if not target_path.is_relative_to(self.base_path):
+        try:
+            target_path = self.get_absolute_path(storage_key)
+        except (ValueError, OSError):
             return False
         if target_path.exists() and target_path.is_file():
             try:
@@ -211,10 +236,17 @@ class StorageService:
         Raises:
             ValueError: Si ``storage_key`` intenta escapar del ``base_path``.
         """
+        if not storage_key or '%' in storage_key or any(ord(c) < 32 or ord(c) == 127 for c in storage_key):
+            raise ValueError("Ruta de almacenamiento no permitida")
         key = Path(storage_key.replace("\\", "/"))
         if key.is_absolute() or key.drive or ".." in key.parts or ":" in storage_key:
             raise ValueError("Ruta de almacenamiento no permitida")
-        target = (self.base_path / key).resolve()
+        current = self.base_path
+        for part in key.parts:
+            current = current / part
+            if current.is_symlink() or current.is_junction():
+                raise ValueError("Ruta de almacenamiento no permitida")
+        target = current.resolve()
         if not target.is_relative_to(self.base_path):
             raise ValueError("Ruta de almacenamiento no permitida")
         return target

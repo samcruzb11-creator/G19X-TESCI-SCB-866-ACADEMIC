@@ -107,15 +107,24 @@ def fresh_authorization(db, user, expected):
     discards the entire response. Authorization is linearized at this barrier;
     a later revocation affects the next request, as with any authorized read.
     """
-    sessions = [r for r in db.identity_map.values() if isinstance(r, AuthSession)]
-    with Session(db.get_bind(), autoflush=False) as fresh:
+    # All projections have already been materialized from the original snapshot.
+    # Keep only immutable identity values before rollback expires ORM attributes.
+    # Return the first connection before borrowing one for the fresh barrier:
+    # otherwise concurrent readers can hold every slot while waiting for another.
+    user_id, role = user.id, user.rol
+    session_ids = [r.sid for r in db.identity_map.values() if isinstance(r, AuthSession)]
+    bind = db.get_bind()
+    if db.new or db.dirty or db.deleted:
+        raise RuntimeError('Analysis requires a read-only request transaction')
+    db.rollback()
+    with Session(bind, autoflush=False) as fresh:
         if fresh.get_bind().dialect.name == 'mysql':
             fresh.connection().exec_driver_sql('SET TRANSACTION READ ONLY')
-        actor = fresh.get(Usuario, user.id)
-        if actor is None or not actor.activo or actor.rol != user.rol:
+        actor = fresh.get(Usuario, user_id)
+        if actor is None or not actor.activo or actor.rol != role:
             raise HTTPException(403, 'Operacion no permitida')
-        for old in sessions:
-            current = fresh.get(AuthSession, old.sid)
+        for sid in session_ids:
+            current = fresh.get(AuthSession, sid)
             if (current is None or current.revoked_at is not None
                     or current.expires_at <= datetime.now(timezone.utc).replace(tzinfo=None)):
                 raise HTTPException(401, 'Credenciales invalidas o sesion no vigente')
@@ -138,10 +147,14 @@ def summary(db, user, context, stamp):
 
 def page(db, user, filters, stamp, version_id=None):
     stmt = queries.detection_query(user, filters, version_id)
-    total = db.scalar(select(func.count()).select_from(stmt.subquery()))
     cols = stmt.selected_columns
-    rows = db.execute(stmt.order_by(case((cols.severidad == 'WARNING', 0), else_=1),
-        cols.tipo, cols.recurso, cols.recurso_id).limit(filters.limit).offset(filters.offset)).mappings()
+    # Compute the total before LIMIT in the same scan as the page. Repeating all
+    # window detections for COUNT doubles the most expensive endpoint under load.
+    rows = db.execute(stmt.add_columns(func.count().over().label('page_total'))
+        .order_by(case((cols.severidad == 'WARNING', 0), else_=1),
+        cols.tipo, cols.recurso, cols.recurso_id).limit(filters.limit).offset(filters.offset)).mappings().all()
+    total = rows[0]['page_total'] if rows else (
+        db.scalar(select(func.count()).select_from(stmt.subquery())) if filters.offset else 0)
     return DetectionPage(total=total, limit=filters.limit, offset=filters.offset,
         items=[detection(dict(r), stamp) for r in rows])
 

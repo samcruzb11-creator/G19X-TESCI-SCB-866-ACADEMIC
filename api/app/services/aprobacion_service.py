@@ -93,7 +93,7 @@ def lock_subject(db, user, version_id, document_id, action, audit_id=None):
         # A nested EXISTS can have used an earlier consistent-read snapshot.
         # The locked parent rows are authoritative after an ownership change.
         raise HTTPException(404, 'Recurso no encontrado')
-    if any(a.estado in TERMINAL_AUDITS for a in audits):
+    if any(a.estado not in {'PLANNED', 'IN_PROGRESS', 'IN_REVIEW'} for a in audits):
         raise HTTPException(409, 'Una auditoria vinculada no admite aprobaciones')
     doc = db.scalar(select(Documento).where(Documento.id == document_id,
         authz.documento_scope(user)).with_for_update().execution_options(populate_existing=True))
@@ -371,7 +371,7 @@ def resources(db, user, filters):
 
 def approvers(db, user, filters):
     authz.require_permission(user, 'aprobacion.manage')
-    stmt = select(Usuario.id, Usuario.nombre).where(Usuario.activo.is_(True), Usuario.rol == 'APROBADOR')
+    stmt = select(Usuario.id, Usuario.nombre).where(Usuario.activo.is_(True), authz.exact_role(Usuario.rol) == 'APROBADOR')
     if filters.q:
         term = filters.q.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
         stmt = stmt.where(Usuario.nombre.ilike('%' + term + '%', escape='\\'))
