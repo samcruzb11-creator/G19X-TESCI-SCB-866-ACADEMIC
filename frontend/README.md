@@ -1,5 +1,8 @@
 # Frontend PHP
 
+Instalación completa: [README raíz](../README.md). Recorrido de evaluación y
+credenciales locales independientes: [Guía de instalación](../docs/GUIA_INSTALACION.md).
+
 PHP 8.1 o superior con cURL, mbstring y fileinfo. No requiere Composer ni frameworks.
 El frontend consume FastAPI; no accede directamente a MySQL.
 
@@ -58,11 +61,10 @@ Los formularios que cambian estado, incluido login/logout, conservan CSRF.
 
 Detalle y pruebas: [FASE_6B_3_PHP_AUTH_RBAC.md](../docs/FASE_6B_3_PHP_AUTH_RBAC.md).
 
-El dashboard consulta hasta 100 documentos y, para ADMIN y auditores, hasta 50 auditorías (límite
-predeterminado de la API); los indicadores muestran ese alcance, sin afirmar
-totales globales. Los cinco documentos recientes se ordenan por `updated_at`
-dentro de la muestra consultada. Las fechas de la API en UTC se presentan
-en horario de Ciudad de México.
+El dashboard actual 7D utiliza una respuesta de resumen calculada en FastAPI
+mediante agregaciones SQL sobre el alcance autorizado. Sustituye los contadores
+de muestras del dashboard inicial. Las fechas UTC se presentan en horario de
+Ciudad de México; la actividad sigue los permisos de historial.
 
 Los errores de conexión producen estados de información no disponible,
 nunca contadores ficticios de cero. APROBADOR no recibe métricas de versiones

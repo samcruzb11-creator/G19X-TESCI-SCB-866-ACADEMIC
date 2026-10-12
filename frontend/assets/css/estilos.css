@@ -57,6 +57,7 @@ h3 { font-size: 16px; font-weight: 600; }
 .skip-link:focus { top: 12px; }
 
 /* 2. Application shell */
+.develop-sidebar { display: block; width: 148px; height: auto; max-width: 100%; margin-bottom: 12px; border-radius: 3px; }
 .sidebar { position: fixed; inset: 0 auto 0 0; width: var(--sidebar-width); background: var(--sidebar); color: var(--sidebar-text); display: flex; flex-direction: column; z-index: 20; }
 .brand { display: flex; align-items: center; gap: 12px; padding: 29px 22px 32px; color: white; }
 .brand-mark { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid #617585; border-radius: 3px; font-size: 14px; font-weight: 600; letter-spacing: 1px; flex-shrink: 0; }

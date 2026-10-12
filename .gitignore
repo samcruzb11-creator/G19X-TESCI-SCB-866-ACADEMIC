@@ -25,3 +25,8 @@ Desktop.ini
 .pytest_cache/
 **/.pytest_temp*/
 api/tmp_test/
+
+# Private TODO Academy access documents must stay outside the repository.
+01_ACCESOS_PRUEBA.md
+**/01_ACCESOS_PRUEBA.md
+*.evaluation-credentials.private.md

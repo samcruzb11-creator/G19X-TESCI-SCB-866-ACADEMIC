@@ -1,9 +1,13 @@
 # API — Sistema de Trazabilidad Documental
 
+Instalación completa y evaluación reproducible: [README raíz](../README.md) y
+[Guía de instalación](../docs/GUIA_INSTALACION.md). Este documento complementa
+esas instrucciones con referencias históricas de implementación.
+
 ## Requisitos
 
 - Python 3.14
-- XAMPP con MySQL iniciado y una base de datos llamada `sistema_trazabilidad`
+- MySQL 8 real/InnoDB con un schema vacío de su elección; MariaDB de XAMPP no es sustituto compatible
 
 ## Preparar el entorno
 
@@ -12,18 +16,20 @@ Desde una terminal PowerShell, entra a la carpeta `api`:
 ```powershell
 py -3.14 -m venv venv
 .\venv\Scripts\Activate.ps1
-pip install -r ..\requirements.txt
+python -m pip install -r ..\requirements.txt -c ..\requirements-lock.txt
 Copy-Item .env.example .env
 ```
 
-Edita `.env` con la configuración local de MySQL. No subas este archivo a Git. En XAMPP, inicia MySQL y crea la base de datos indicada arriba. Las migraciones Alembic versionan el esquema; revisa y aplica las pendientes antes de desplegar una versión nueva.
+Edite `.env` con MySQL y un secreto JWT privado aleatorio. No lo suba a Git.
+Desde `api` ejecute `python -m alembic upgrade head` hasta **005**. Para evaluación,
+use el seed explícito documentado en la raíz; no depende de un dump personal.
 
 ## Ejecutar
 
 Desde `api` y con el entorno virtual activado:
 
 ```powershell
-uvicorn app.main:app --reload
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
 Hardening local 6B.4A: [operación, límites, migración 003 y pruning](../docs/FASE_6B_4A_AUTH_HARDENING.md).
@@ -58,7 +64,9 @@ deshabilita lógicamente al existir un ADMIN activo; no modifica otros usuarios.
 
 Fase 7A: [ciclo de auditorías, permisos y operación de 005](../docs/FASE_7A_AUDITORIAS.md).
 005 agrega únicamente IN_REVIEW al CHECK; no cambia 001–004. En instalaciones
-nuevas, provisionar primero el ADMIN en 004 con la herramienta existente.
+nuevas de evaluación, migrar directamente a 005 y ejecutar el seed explícito de
+Fase 9. El bootstrap histórico sigue disponible para el primer ADMIN personal
+en una instalación local sin administrador activo; no mezclar ambos recorridos.
 
 Fase 7B: [hallazgos y gestión integral de evidencias](../docs/FASE_7B_HALLAZGOS_EVIDENCIAS.md).
 Reutiliza el schema **005**; no requiere migración 006.

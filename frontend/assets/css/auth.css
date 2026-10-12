@@ -44,3 +44,10 @@
     .auth-brand a { font-size: 14px; }
     .auth-brand small { font-size: 8px; letter-spacing: 1px; }
 }
+/* Corporate identity from the supplied reference; neutral application surfaces. */
+.auth-company { position: absolute; z-index: 2; top: 24px; right: 36px; display: flex; align-items: center; gap: 14px; }
+.auth-company img { display: block; width: 200px; height: auto; border-radius: 4px; }
+.auth-company span { font-size: 12px; color: #394b58; }
+.auth-company small { display: block; font-size: 11px; margin-top: 3px; }
+@media (max-width: 1050px) { .auth-company { position: static; margin: 0 36px 16px; } }
+@media (max-width: 760px) { .auth-company { margin: 0 24px 20px; gap: 10px; } .auth-company img { width: 128px; } .auth-company span { font-size: 11px; } .auth-company small { font-size: 10px; } }

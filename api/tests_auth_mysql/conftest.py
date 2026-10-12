@@ -160,7 +160,9 @@ def mysql_factory():
     finally:
         if engine is not None:
             engine.dispose()
-        if created:
+        if created and os.environ.get('AUTH_MYSQL_KEEP_SCHEMA') == '1':
+            print('Temporary auth schema retained by explicit AUTH_MYSQL_KEEP_SCHEMA=1; no database deleted')
+        elif created:
             # Delete only the random schema created by this exact fixture invocation.
             assert re.fullmatch(r"sistema_trazabilidad_test_auth_[0-9a-f]{16}", name)
             assert name.casefold() not in {settings.db_name.casefold(), "sistema_trazabilidad"}

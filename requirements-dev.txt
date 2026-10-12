@@ -1,0 +1,4 @@
+# Pruebas; separado de las dependencias de ejecucion.
+-r requirements.txt
+pytest>=8.3,<10
+websockets>=14,<18

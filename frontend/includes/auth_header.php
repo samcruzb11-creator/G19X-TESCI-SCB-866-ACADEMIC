@@ -14,4 +14,5 @@
 </head><body class="auth-page">
 <a class="skip-link" href="#contenido">Ir al contenido</a>
 <header class="auth-brand"><a href="<?= e(page_url('login')) ?>"><span class="auth-mark" aria-hidden="true">ST</span><span>Sistema de Trazabilidad<small>GESTIÓN DOCUMENTAL Y AUDITORÍAS</small></span></a></header>
+<div class="auth-company"><img src="assets/branding/develop-logo.jpg" width="304" height="97" alt="Develop Talent &amp; Technology"><span>PluriOne S.A. de C.V.<small>Develop Talent &amp; Technology</small></span></div>
 <div class="auth-layout"><main id="contenido" class="auth-form-column" tabindex="-1"><div class="auth-form-inner">

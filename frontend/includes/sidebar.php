@@ -10,5 +10,5 @@
             <a class="nav-link<?= $route['nav'] === $key ? ' is-active' : '' ?>" href="<?= e(page_url($key)) ?>"<?= $route['nav'] === $key ? ' aria-current="page"' : '' ?>><?= e($label) ?></a>
         <?php endforeach; ?>
     </nav>
-    <div class="sidebar-footer"><span><?= e(APP_NAME) ?></span><small>Versión MVP · Entorno local</small></div>
+    <div class="sidebar-footer"><img class="develop-sidebar" src="assets/branding/develop-logo.jpg" width="304" height="97" alt="Develop Talent &amp; Technology"><span>PluriOne S.A. de C.V.</span><small><?= e(APP_NAME) ?></small><small>Versión MVP · Entorno local</small></div>
 </aside>
