@@ -1,49 +1,29 @@
-# Estudio técnico 2: consistencia entre archivos y MySQL
+# Servicio de transacciones de archivos
 
-**Archivo:** [`api/app/services/file_transaction.py`](../api/app/services/file_transaction.py)  
-**Proyecto:** Sistema de Trazabilidad Documental para Auditorías  
-**Propósito:** explicar cómo se manejan los fallos al guardar archivos y sus registros de trazabilidad.
+**Módulo:** `api/app/services/file_transaction.py`
 
-## ¿Qué problema resuelve?
+## Responsabilidad
 
-Cuando se carga un PDF, el sistema almacena el archivo en disco y registra en MySQL sus metadatos (como ubicación, tamaño y SHA-256). Estas operaciones **no forman una única transacción atómica**: MySQL puede revertir sus propios registros, pero no controla automáticamente un archivo ya escrito en el sistema de archivos.
+Este servicio define cómo manejar errores durante el registro de archivos de documentos y evidencias. Al cargar un archivo, el sistema escribe su contenido en el almacenamiento local y registra sus metadatos y eventos en MySQL. Como el sistema de archivos y la base de datos no comparten una transacción atómica, un fallo entre ambas operaciones puede dejar información inconsistente.
 
-Si se produce un fallo, podríamos conservar un archivo sin registro o, más grave, borrar un archivo cuyo registro sí quedó confirmado. Este módulo establece cuándo es seguro intentar una limpieza y cuándo debemos conservar el archivo para verificar lo ocurrido.
+El objetivo del módulo es limitar las compensaciones a los casos en los que es seguro realizarlas y conservar los archivos cuando no se puede determinar si el registro en MySQL quedó confirmado.
 
-## ¿Cómo funciona?
+## Implementación
 
-Los servicios de [documentos](../api/app/services/documento_service.py) y [evidencias](../api/app/services/evidencia_service.py) guardan primero el archivo y preparan los metadatos y eventos con `flush()`. Después utilizan estas funciones:
+Los servicios `documento_service.py` y `evidencia_service.py` guardan el archivo y preparan los registros asociados mediante `flush()` antes de intentar `commit()`. `file_transaction.py` proporciona tres funciones:
 
-- **`rollback_safely(db)`:** intenta revertir la transacción de MySQL. Si falla, lo registra y devuelve `False`, sin incluir mensajes potencialmente sensibles del controlador.
-- **`discard_uncommitted_file(db, storage, key)`:** intenta revertir la transacción y eliminar **sólo el archivo nuevo**, cuando todavía no se intentó confirmar o existe una señal explícita de rechazo del servidor. Si falla el rollback, conserva el archivo para revisión.
-- **`commit_stored_file(db, storage, key)`:** intenta ejecutar `commit()`. Reconoce específicamente el error MySQL **1213 (deadlock)**, sin invalidación de conexión, como rechazo explícito: en ese caso intenta compensar el archivo y vuelve a lanzar el error. Ante otros fallos del commit, el resultado se considera incierto; conserva el archivo y lanza `CommitOutcomeUnknown`.
+- **`rollback_safely(db)`:** intenta revertir la transacción de MySQL y devuelve si la operación se completó. Si falla, registra una advertencia operativa sin incluir mensajes potencialmente sensibles del controlador.
+- **`discard_uncommitted_file(db, storage, key)`:** ejecuta el rollback y, si se completa, intenta eliminar el archivo recién creado. Sólo debe utilizarse antes de intentar el commit o después de un rechazo explícito que demuestre la reversión del lado de MySQL.
+- **`commit_stored_file(db, storage, key)`:** realiza el commit. Si MySQL informa un deadlock mediante el error 1213 en las condiciones previstas, trata el commit como rechazado e intenta compensar el archivo. Ante otros errores, el resultado se considera incierto: conserva el archivo y lanza `CommitOutcomeUnknown`.
 
-Después de un commit exitoso, los servicios realizan `refresh()` **fuera de la compensación**. Así, un error al refrescar o preparar la respuesta no provoca que se borre un archivo cuyo registro ya se confirmó.
+Una pérdida de conexión durante el commit no permite establecer si MySQL confirmó o rechazó la transacción. Por ello, la política evita borrar el archivo o repetir automáticamente la operación. La revisión del estado de MySQL y del almacenamiento debe preceder a cualquier nuevo intento.
 
-## ¿Por qué se diseñó así?
+Tras un commit exitoso, los servicios consumidores ejecutan `refresh()` fuera de la sección de compensación. Un fallo al recuperar los datos para construir la respuesta no provoca la eliminación de un archivo que ya puede estar asociado a registros persistidos.
 
-La regla más importante es **no interpretar una pérdida de conexión como prueba de que el commit falló**. MySQL pudo confirmar los cambios antes de perderse la respuesta. Incluso si luego se logra hacer `rollback()` en la sesión, eso no demuestra que el servidor hubiera rechazado el commit.
+## Criterios de diseño y límites
 
-Por eso, cuando el resultado es incierto, prefiero conservar el archivo y comprobar su relación con los registros antes de permitir otro intento. Repetir automáticamente la carga podría duplicar documentos o evidencias; eliminarla podría romper una referencia válida.
+La separación de errores previos y posteriores al commit evita confundir un fallo de respuesta con un fallo de persistencia. También permite mantener el archivo cuando la eliminación sería más arriesgada que su conservación.
 
-## Ejemplo para explicar en la defensa
+Este mecanismo reduce las inconsistencias, pero no garantiza atomicidad entre MySQL y el sistema de archivos. Una interrupción imprevista puede dejar archivos sin referencias; además, las operaciones de rollback y limpieza pueden fallar. El servicio de [integridad de almacenamiento](../api/app/services/storage_integrity.py) permite detectar referencias faltantes, archivos candidatos a huérfanos y discrepancias de hash o tamaño, sin eliminarlos automáticamente.
 
-Un responsable sube una nueva versión documental:
-
-1. El PDF se escribe en `storage/` y se calculan sus metadatos.
-2. Se preparan la versión y el evento de trazabilidad en MySQL.
-3. Durante `commit()`, se pierde la conexión.
-4. El sistema **no borra el PDF**: informa que no pudo confirmar el registro mediante `CommitOutcomeUnknown`.
-5. Antes de volver a subirlo, es necesario revisar el estado real en MySQL y el almacenamiento.
-
-Si, en cambio, el error ocurre **antes** del commit y la transacción puede revertirse, se intenta eliminar el archivo nuevo. La limpieza puede fallar; el sistema registra esa situación para una reconciliación posterior.
-
-## Pruebas y limitaciones
-
-En [`test_file_consistency_unit.py`](../api/tests_unit/test_file_consistency_unit.py) existen casos para fallo de `flush()`, rechazo explícito por deadlock, resultado incierto del commit y fallo de `refresh()` posterior a un commit exitoso. Son pruebas con simulaciones; **no se volvieron a ejecutar al redactar esta ficha**.
-
-La solución **reduce el riesgo de inconsistencia, pero no garantiza atomicidad entre MySQL y el disco**. Pueden existir archivos huérfanos, por ejemplo, si un proceso se interrumpe inesperadamente. El [escáner de integridad](../api/app/services/storage_integrity.py) permite identificar discrepancias sin eliminarlas automáticamente; la conciliación requiere verificar el estado real.
-
----
-
-*Ficha preparada con asistencia de ChatGPT a partir del código del repositorio y la práctica de defensa con el estudiante. No sustituye su propia comprensión ni constituye una prueba nueva de ejecución.*
+**Referencias de implementación:** [carga de versiones](../api/app/services/documento_service.py), [carga de evidencias](../api/app/services/evidencia_service.py) y [pruebas de consistencia](../api/tests_unit/test_file_consistency_unit.py). Estas pruebas describen escenarios simulados de fallo; no se ejecutaron nuevamente al preparar este documento.
