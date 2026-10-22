@@ -1,38 +1,30 @@
-# Estudio técnico 1: autorización y control de acceso
+# Servicio de autorización y control de acceso
 
-**Archivo:** [`api/app/services/authorization_service.py`](../api/app/services/authorization_service.py)  
-**Proyecto:** Sistema de Trazabilidad Documental para Auditorías  
-**Propósito:** comprender y explicar los permisos del backend durante la defensa de residencias.
+**Módulo:** `api/app/services/authorization_service.py`
 
-## ¿Qué problema resuelve?
+## Responsabilidad
 
-Este módulo evita que iniciar sesión sea suficiente para consultar o modificar cualquier documento. El sistema maneja auditorías, versiones, evidencias y aprobaciones de distintos responsables; por ello necesita comprobar **qué acción puede realizar cada usuario** y **sobre qué registros concretos**.
+Este servicio concentra las reglas de autorización para las operaciones sobre auditorías, documentos, versiones, evidencias, hallazgos y aprobaciones. Su objetivo es impedir que un usuario acceda a información o ejecute acciones fuera de los permisos asociados con su rol y con los recursos que tiene asignados.
 
-## ¿Cómo funciona?
+La identificación del usuario se realiza previamente en `api/app/api/dependencies.py`, mediante la validación del JWT, la sesión y el estado de la cuenta. El servicio de autorización recibe el usuario identificado y evalúa sus permisos.
 
-La autenticación ocurre en [`api/app/api/dependencies.py`](../api/app/api/dependencies.py): allí se validan el JWT, la sesión y el usuario activo. Después, `authorization_service.py` trabaja con el usuario identificado y aplica dos controles:
+## Implementación
 
-1. **Permiso por rol (RBAC).** `PERMISSIONS` define acciones reconocidas; `require_permission(user, action)` rechaza con **403** las acciones desconocidas, los usuarios inactivos o los roles no autorizados. ADMIN dispone de acceso general a las acciones registradas, pero no queda exento de otras reglas de negocio.
-2. **Alcance por recurso.** Funciones como `documento_scope()`, `auditoria_scope()` y `version_scope()` construyen filtros de SQLAlchemy que se incorporan a las consultas. Así, compartir un rol o un área no da acceso automático a los mismos expedientes.
+El control de acceso utiliza dos niveles complementarios:
 
-Por ejemplo, para `RESPONSABLE_AREA`, `documento_scope()` exige `Documento.responsable_id == user.id`. Si solicita un documento ajeno, `GET /api/v1/documentos/{documento_id}` devuelve **404**, igual que cuando el documento no existe. Esto evita revelar directamente su existencia.
+- **Permisos por acción:** el diccionario `PERMISSIONS` define las operaciones admitidas para cada rol. `require_permission()` rechaza con HTTP 403 las acciones no reconocidas, las cuentas inactivas y los roles sin autorización. ADMIN puede realizar las acciones registradas, sujeto a las demás restricciones del sistema.
+- **Alcance de los recursos:** funciones como `auditoria_scope()`, `documento_scope()` y `version_scope()` generan expresiones de SQLAlchemy que se incorporan a las consultas. De este modo, tener permiso para consultar documentos no implica poder consultar todos los documentos.
 
-En las actualizaciones, `authorize_document_update()` comprueba además que un responsable no se reasigne el documento a otra persona: esa modificación se reserva a ADMIN. En determinadas escrituras, `lock_actor()` vuelve a consultar el estado y los permisos del usuario bajo un bloqueo de base de datos, porque podrían cambiar durante la operación. **No vuelve a pedir la contraseña ni valida otra vez el JWT.**
+Para `RESPONSABLE_AREA`, `documento_scope()` restringe el acceso a los registros cuyo `responsable_id` coincide con `user.id`. Los auditores consultan documentos vinculados a sus auditorías, mientras que los aprobadores tienen acceso a documentos y versiones relacionados con sus asignaciones. Las reglas concretas dependen del recurso y de la operación.
 
-## ¿Por qué aplicar estos controles en FastAPI?
+La función `resource()` combina la comprobación del permiso con la búsqueda por identificador y alcance. Si el usuario puede realizar la acción, pero el registro solicitado no está dentro de su alcance, devuelve HTTP 404. En el router de documentos se aplica el mismo criterio: un documento ajeno y uno inexistente no se distinguen mediante la respuesta de detalle.
 
-Ocultar un botón desde PHP mejora la interfaz, pero no protege por sí solo los datos: alguien podría enviar solicitudes directamente a la API. Por eso, los permisos y los filtros de acceso se aplican **en el backend**, antes de entregar o modificar información. Separar autenticación, autorización y lógica de negocio también permite reutilizar estas reglas entre módulos.
+Las operaciones de escritura incluyen verificaciones adicionales. Por ejemplo, `authorize_document_update()` impide que un responsable cambie la asignación del documento a otra persona. `lock_actor()` vuelve a consultar el estado y los permisos del usuario bajo un bloqueo compartido de base de datos, para reducir el riesgo de operar con permisos que hayan cambiado durante la transacción.
 
-## ¿Cómo lo demostraría ante Edgar?
+## Criterios de diseño y límites
 
-- **401:** petición sin autenticación válida; lo gestiona la dependencia de autenticación.
-- **403:** usuario autenticado que intenta una acción no permitida, como `RESPONSABLE_AREA` creando una auditoría.
-- **404:** documento inexistente o fuera del alcance del usuario, aunque tenga permiso general para leer documentos.
+La autorización se aplica en FastAPI y no depende de ocultar controles en la interfaz PHP. Esto permite comprobar las restricciones incluso cuando se realizan solicitudes directas a la API. La separación entre permisos generales y alcance de registros también facilita reutilizar las reglas en distintos servicios.
 
-Puedo mostrar las consultas del [router de documentos](../api/app/routers/documentos.py) y los casos de acceso indebido incluidos en [`test_rbac_unit.py`](../api/tests_unit/test_rbac_unit.py), particularmente `test_document_idor` y `test_vertical_denials`. **La existencia de estas pruebas no equivale a haberlas ejecutado durante la preparación de esta ficha.**
+El módulo no autentica usuarios ni protege automáticamente cualquier consulta: cada router o servicio debe aplicar las comprobaciones correspondientes. La autenticación inválida produce HTTP 401 desde las dependencias; una acción prohibida produce HTTP 403 y un recurso fuera del alcance puede producir HTTP 404.
 
-**Límite importante:** este servicio no protege por sí solo todas las rutas, ni valida contraseñas, archivos o sesiones; los demás módulos deben llamar correctamente sus verificaciones.
-
----
-
-*Ficha de estudio redactada con asistencia de ChatGPT, a partir del código publicado, del análisis de Codex y de las respuestas practicadas por el estudiante. Su explicación oral debe reflejar la comprensión personal del estudiante.*
+**Referencias de implementación:** [dependencias de autenticación](../api/app/api/dependencies.py), [router de documentos](../api/app/routers/documentos.py) y [pruebas de autorización](../api/tests_unit/test_rbac_unit.py). Estas pruebas están incorporadas al repositorio; este documento no presenta una nueva ejecución de ellas.
