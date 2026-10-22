@@ -6,6 +6,21 @@ Aplicación local que organiza documentos, versiones, evidencias y hallazgos de 
 
 Mantener un expediente verificable durante el ciclo de auditoría: responsables, archivos con SHA-256, versiones históricas, decisiones y eventos. El proyecto corresponde a la residencia profesional de Samuel Cruz Barrientos, Ingeniería en Sistemas, Tecnológico de Estudios Superiores de Cuautitlán Izcalli / TecNM, con PluriOne S.A. de C.V. / Develop Talent & Technology, septiembre de 2026 a enero de 2027.
 
+## Uso de inteligencia artificial durante el desarrollo
+
+Durante el desarrollo se utilizaron asistentes de inteligencia artificial en distintas fases, con responsabilidades cambiantes y sin una división rígida de funciones:
+
+- **ChatGPT:** planificación, discusión de arquitectura, coordinación del trabajo, comprensión técnica, documentación y revisión de decisiones.
+- **Codex:** implementación, correcciones, pruebas, revisión y mantenimiento del código.
+- **Antigravity:** implementación, revisiones técnicas, auditorías independientes, análisis adversarial y verificación de seguridad.
+- **Gemini:** apoyo en arquitectura, implementación, análisis técnico y resolución de problemas.
+
+El estudiante definió los requisitos, participó en las decisiones técnicas y supervisó los resultados. Toda contribución asistida debe revisarse y validarse; la responsabilidad del software corresponde al estudiante, Samuel Cruz Barrientos.
+
+Esta asistencia durante el desarrollo es distinta del motor implementado en el producto. El sistema no incorpora Ollama, LLM ni modelos entrenados: el análisis documental 7E utiliza reglas deterministas y heurísticas explicables.
+
+En futuros commits pequeños donde una herramienta contribuya como coautora, se debe agregar al final del mensaje, separado del cuerpo por una línea en blanco, el tráiler `Co-authored-by: Nombre <correo>`. Los marcadores deben sustituirse por una identidad real y verificable del coautor; si no se dispone de ella, se debe documentar la asistencia sin inventar nombres ni correos. No se reescriben commits anteriores.
+
 ## Funcionalidades y estado
 
 MVP funcional local: autenticación, sesiones revocables, RBAC, solicitudes de acceso revisadas por ADMIN, backend de recuperación de contraseña, auditorías, documentos/versiones, evidencias, hallazgos, aprobaciones por versión, dashboard y análisis determinista explicable. No existe registro público automático.
