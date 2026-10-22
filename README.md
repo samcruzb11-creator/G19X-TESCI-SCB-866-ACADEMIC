@@ -8,18 +8,17 @@ Mantener un expediente verificable durante el ciclo de auditoría: responsables,
 
 ## Uso de inteligencia artificial durante el desarrollo
 
-Durante el desarrollo se utilizaron asistentes de inteligencia artificial en distintas fases, con responsabilidades cambiantes y sin una división rígida de funciones:
+Durante el desarrollo de este proyecto utilicé herramientas de inteligencia artificial como apoyo para la programación y revisión del código.
 
-- **ChatGPT:** planificación, discusión de arquitectura, coordinación del trabajo, comprensión técnica, documentación y revisión de decisiones.
-- **Codex:** implementación, correcciones, pruebas, revisión y mantenimiento del código.
-- **Antigravity:** implementación, revisiones técnicas, auditorías independientes, análisis adversarial y verificación de seguridad.
-- **Gemini:** apoyo en arquitectura, implementación, análisis técnico y resolución de problemas.
+Definí la arquitectura del sistema y los requisitos, elegí las tecnologías y tomé las decisiones sobre su funcionamiento.
 
-El estudiante definió los requisitos, participó en las decisiones técnicas y supervisó los resultados. Toda contribución asistida debe revisarse y validarse; la responsabilidad del software corresponde al estudiante, Samuel Cruz Barrientos.
+Utilicé Codex principalmente para implementar los módulos, corregir código y desarrollar pruebas siguiendo mis indicaciones. Utilicé Antigravity principalmente para revisar y auditar el código, identificar errores, detectar posibles problemas de seguridad y verificar las implementaciones. También utilicé Gemini y ChatGPT como apoyo complementario durante distintas etapas del desarrollo.
 
-Esta asistencia durante el desarrollo es distinta del motor implementado en el producto. El sistema no incorpora Ollama, LLM ni modelos entrenados: el análisis documental 7E utiliza reglas deterministas y heurísticas explicables.
+Me encargué de planificar y supervisar el desarrollo, establecer las tareas, revisar y validar los resultados y decidir qué cambios se integraban al proyecto. Yo, Samuel Cruz Barrientos, asumo la responsabilidad del software.
 
-En futuros commits pequeños donde una herramienta contribuya como coautora, se debe agregar al final del mensaje, separado del cuerpo por una línea en blanco, el tráiler `Co-authored-by: Nombre <correo>`. Los marcadores deben sustituirse por una identidad real y verificable del coautor; si no se dispone de ella, se debe documentar la asistencia sin inventar nombres ni correos. No se reescriben commits anteriores.
+Estas herramientas se utilizaron como apoyo durante el desarrollo. El módulo de análisis documental implementado funciona mediante reglas deterministas y comparaciones de datos; actualmente no utiliza LLM, modelos de inteligencia artificial entrenados ni Ollama.
+
+Mantengo el compromiso de atribuir las colaboraciones de IA en los futuros commits cuando corresponda.
 
 ## Funcionalidades y estado
 
