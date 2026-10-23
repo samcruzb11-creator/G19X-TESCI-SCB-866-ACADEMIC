@@ -102,7 +102,7 @@ Los roles no significan acceso irrestricto a cualquier fila. El alcance se aplic
 
 Cada requisito se acepta con prueba funcional y, para autorización/integridad, con una prueba negativa server-side. La demo debe poder levantarse sin editar filas SQL ni usar credenciales personales. El seed repetido no duplica usuarios ni cambia filas existentes. README debe cubrir todos los pasos. Los PDFs/DOCX deben abrir, contener texto y conservar títulos/tablas legibles.
 
-El baseline Fase 8 documenta 2,662 ejecuciones verdes, distinguiendo 1,937 contratos únicos. Fase 9 registra sus resultados por separado en [Informe de cierre](FASE_9_CIERRE_ENTREGA.md). No se miden horas ahorradas, reducción porcentual de errores ni adopción real de usuarios: no hay evidencia para esos resultados.
+El baseline Fase 8 documenta 2,662 ejecuciones verdes, distinguiendo 1,937 contratos únicos. Fase 9 registra sus resultados por separado en [Informe de cierre](historico/FASE_9_CIERRE_ENTREGA.md). No se miden horas ahorradas, reducción porcentual de errores ni adopción real de usuarios: no hay evidencia para esos resultados.
 
 ## Riesgos y dependencias
 

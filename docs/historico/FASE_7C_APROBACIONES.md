@@ -329,7 +329,7 @@ services/documento_controller.php y tests/conftest.py.
 ?? api/tests_auth_mysql/test_aprobacion_e2e_mysql.py
 ?? api/tests_auth_mysql/test_aprobacion_mysql.py
 ?? api/tests_unit/test_aprobacion_unit.py
-?? docs/FASE_7C_APROBACIONES.md
+?? docs/historico/FASE_7C_APROBACIONES.md
 ?? frontend/pages/aprobaciones.php
 ?? frontend/pages/aprobaciones_list.php
 ?? frontend/services/aprobacion_helpers.php

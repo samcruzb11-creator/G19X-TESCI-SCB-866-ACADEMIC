@@ -459,7 +459,7 @@ api/app/services/dashboard_service.py
 api/tests_auth_mysql/test_dashboard_e2e_mysql.py
 api/tests_auth_mysql/test_dashboard_mysql.py
 api/tests_unit/test_dashboard_unit.py
-docs/FASE_7D_DASHBOARD_ALERTAS_INDICADORES.md
+docs/historico/FASE_7D_DASHBOARD_ALERTAS_INDICADORES.md
 frontend/includes/dashboard_alert_list.php
 frontend/pages/dashboard_alertas.php
 frontend/services/dashboard_helpers.php

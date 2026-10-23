@@ -514,7 +514,7 @@ Nuevos: api/app/routers/analisis.py; api/app/schemas/analisis.py;
 api/app/services/analisis_queries.py; api/app/services/analisis_rules.py;
 api/app/services/analisis_service.py; api/tests_auth_mysql/test_analisis_mysql.py;
 api/tests_auth_mysql/test_analisis_e2e_mysql.py; api/tests_unit/test_analisis_unit.py;
-docs/FASE_7E_ANALISIS_INTELIGENTE.md; frontend/includes/analisis_list.php;
+docs/historico/FASE_7E_ANALISIS_INTELIGENTE.md; frontend/includes/analisis_list.php;
 frontend/pages/analisis.php; frontend/services/analisis_controller.php;
 frontend/services/analisis_helpers.php; frontend/tests/test_analisis.py;
 frontend/tests/test_analisis_browser.py.

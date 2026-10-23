@@ -37,7 +37,7 @@ Reconstrucción a partir de Git y reportes de fases conservados, consultados dur
 
 Fase 8 concluyó con 1,212 unit, 1,138 MySQL y 312 frontend verdes, cero fallos/skips finales. Son 2,662 ejecuciones que incluyen contratos importados/repetidos; el informe distingue 1,937 contratos únicos. El benchmark local incluyó perfiles hasta 250 concurrentes y documenta límites del análisis pesado y de los presupuestos de login.
 
-Fase 9 añade tres unit de CLI y siete pruebas MySQL parametrizadas/de comportamiento de seed/RBAC; el detalle actual se encuentra en [Informe de cierre](FASE_9_CIERRE_ENTREGA.md). La validación fresca incluye API/PHP reales y capturas demo. No se utiliza este registro para inventar cobertura porcentual ni rendimiento universal.
+Fase 9 añade tres unit de CLI y siete pruebas MySQL parametrizadas/de comportamiento de seed/RBAC; el detalle actual se encuentra en [Informe de cierre](historico/FASE_9_CIERRE_ENTREGA.md). La validación fresca incluye API/PHP reales y capturas demo. No se utiliza este registro para inventar cobertura porcentual ni rendimiento universal.
 
 ## Decisiones de cierre
 

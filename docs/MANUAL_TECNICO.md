@@ -55,7 +55,7 @@ api\venv\Scripts\python.exe scripts/prune_auth_login_limits.py --help
 api\venv\Scripts\python.exe scripts/verificar_integridad.py --help
 ```
 
-Bootstrap inicial crea sólo el primer ADMIN activo en entorno local permitido y pide contraseña oculta; no sustituye seed demo ni modifica usuarios. Gestionar usuario requiere ID+correo confirmados, password oculto y confirmación explícita; sólo cambia contraseña y revoca sesiones. No lo utilice sobre cuentas personales durante pruebas. Consulte [bootstrap histórico](FASE_6D_1_BOOTSTRAP_ADMIN.md).
+Bootstrap inicial crea sólo el primer ADMIN activo en entorno local permitido y pide contraseña oculta; no sustituye seed demo ni modifica usuarios. Gestionar usuario requiere ID+correo confirmados, password oculto y confirmación explícita; sólo cambia contraseña y revoca sesiones. No lo utilice sobre cuentas personales durante pruebas. Consulte [bootstrap histórico](historico/FASE_6D_1_BOOTSTRAP_ADMIN.md).
 
 Seed con credenciales externas desde `api`: `python -m app.scripts.seed_evaluation_demo --with-dataset` muestra plan; añadir `--confirm-local-demo --credentials-file "RUTA_EXTERNA_AL_DOCUMENTO_PRIVADO"` inserta las cuatro cuentas del archivo de TODO Academy. Sin ese archivo falla seguro. Consulte [contrato y rotación](CREDENCIALES_EVALUACION.md); nunca copie contraseñas al código. Repetición valida identidad/password sin actualizar. Conflicto exige revisión; nunca elimine automáticamente la cuenta para forzar resultado. Producción/remoto son rechazados.
 

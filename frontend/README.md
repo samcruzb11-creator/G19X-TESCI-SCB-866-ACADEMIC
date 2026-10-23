@@ -13,7 +13,7 @@ para sitios exclusivamente HTTPS; `auto` conserva HTTP local. No crear un `.env`
 bajo el web root. El GC de sesiones se fija a 1800 s, probabilidad 1/100 y archivos
 privados; es probabilístico y no garantiza limpieza sin tráfico. En Windows se
 requieren permisos NTFS adecuados. Detalles, proxy futuro y mantenimiento:
-[FASE_6B_4A_AUTH_HARDENING.md](../docs/FASE_6B_4A_AUTH_HARDENING.md).
+[FASE_6B_4A_AUTH_HARDENING.md](../docs/historico/FASE_6B_4A_AUTH_HARDENING.md).
 
 Desde la raíz del proyecto, en PowerShell:
 
@@ -59,7 +59,7 @@ En despliegues con terminación TLS externa, el servidor debe comunicar a PHP
 el HTTPS efectivo; la aplicación no confía en cabeceras de proxy del cliente.
 Los formularios que cambian estado, incluido login/logout, conservan CSRF.
 
-Detalle y pruebas: [FASE_6B_3_PHP_AUTH_RBAC.md](../docs/FASE_6B_3_PHP_AUTH_RBAC.md).
+Detalle y pruebas: [FASE_6B_3_PHP_AUTH_RBAC.md](../docs/historico/FASE_6B_3_PHP_AUTH_RBAC.md).
 
 El dashboard actual 7D utiliza una respuesta de resumen calculada en FastAPI
 mediante agregaciones SQL sobre el alcance autorizado. Sustituye los contadores
@@ -153,7 +153,7 @@ local y lo envían por POST. PHP no conserva códigos ni contraseñas en sesión
 `solicitudes_acceso`/`solicitud_acceso` requieren ADMIN; FastAPI vuelve a autorizar
 cada operación. El JWT continúa exclusivamente en la sesión del servidor PHP.
 
-Diseño, operación, configuración y validación: [FASE_6C_ACCESO_RECUPERACION.md](../docs/FASE_6C_ACCESO_RECUPERACION.md).
+Diseño, operación, configuración y validación: [FASE_6C_ACCESO_RECUPERACION.md](../docs/historico/FASE_6C_ACCESO_RECUPERACION.md).
 
 ## Fase 6B.4B: verificación adaptativa
 
@@ -194,32 +194,32 @@ limpieza pagehide/pageshow, teclado y anchuras 1440/390/320 px. Si el sandbox de
 Windows impide iniciar los procesos internos de Chrome, ejecutar las mismas
 pruebas con autorización fuera del sandbox, manteniendo el perfil temporal.
 No usar ese stub en el despliegue. Configuración y operación completas:
-[FASE_6B_4B_TURNSTILE.md](../docs/FASE_6B_4B_TURNSTILE.md).
+[FASE_6B_4B_TURNSTILE.md](../docs/historico/FASE_6B_4B_TURNSTILE.md).
 
-Fase 7A: [Auditorías: listado paginado, detalle, edición y ciclo de vida](../docs/FASE_7A_AUDITORIAS.md).
+Fase 7A: [Auditorías: listado paginado, detalle, edición y ciclo de vida](../docs/historico/FASE_7A_AUDITORIAS.md).
 Los filtros se aplican en la API antes de paginar. PHP conserva CSRF para todas
 las mutaciones y muestra controles por rol/estado; FastAPI es la autoridad.
 
-Fase 7B: [Hallazgos: filtros, formularios, estados y evidencias](../docs/FASE_7B_HALLAZGOS_EVIDENCIAS.md).
+Fase 7B: [Hallazgos: filtros, formularios, estados y evidencias](../docs/historico/FASE_7B_HALLAZGOS_EVIDENCIAS.md).
 Creación de evidencia con asociación atómica desde el detalle del hallazgo.
 El límite backend de evidencias es `MAX_EVIDENCE_FILE_BYTES`: 20 MiB por defecto
 (20 971 520 bytes). El formulario distingue ese límite de los límites de recepción
 PHP (`upload_max_filesize` y `post_max_size`); se aplica el más restrictivo.
 
-Fase 7C: [Aprobaciones: rondas, asignaciones, decisiones e historial](../docs/FASE_7C_APROBACIONES.md).
+Fase 7C: [Aprobaciones: rondas, asignaciones, decisiones e historial](../docs/historico/FASE_7C_APROBACIONES.md).
 Incluye navegación por rol, listados paginados, creación, detalle y decisiones
 inmutables. Auditorías y documentos muestran sus rondas. POST + CSRF para toda
 mutación; JWT solo en sesión PHP. Los catálogos de versiones/aprobadores se
 consultan por páginas de veinte, sin descargar tablas completas.
 
-Fase 7D: [dashboard ejecutivo y alertas](../docs/FASE_7D_DASHBOARD_ALERTAS_INDICADORES.md).
+Fase 7D: [dashboard ejecutivo y alertas](../docs/historico/FASE_7D_DASHBOARD_ALERTAS_INDICADORES.md).
 `dashboard` usa una única respuesta de resumen calculado en FastAPI; `alertas`
 ofrece filtros/paginación y enlaces autorizados. KPI y severidad nunca se calculan
 en PHP/JavaScript. Errores no fabrican ceros; sin datos se indica explícitamente.
 JWT en sesión PHP, escaping y CSRF existentes conservados. Vista móvil de una
 columna validada a 1440/390/320 px; actividad según permisos de historial.
 
-Fase 7E: [Análisis documental y anomalías explicables](../docs/FASE_7E_ANALISIS_INTELIGENTE.md).
+Fase 7E: [Análisis documental y anomalías explicables](../docs/historico/FASE_7E_ANALISIS_INTELIGENTE.md).
 Vista `analisis` con resumen, filtros, paginación, «¿Por qué se marcó?» y enlaces
 autorizados. Filtrar por documento abre comprobaciones locales limitadas de
 storage/similitud; no es un certificado de cumplimiento. Dashboard y documento

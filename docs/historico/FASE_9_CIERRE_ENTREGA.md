@@ -10,7 +10,7 @@ Preflight previo a cambios: branch main; HEAD y origin/main `d54a81e2a38b3ae8c57
 
 ## 2. Fuentes de verdad e inventario
 
-Diez routers, 61 operaciones HTTP en 52 rutas distintas incluyendo raíz, 18 tablas de aplicación y control Alembic, revisiones 001–005, cinco roles canónicos, 23 páginas y 66 PHP. Código, OpenAPI, metadata y reportes de fases determinaron la documentación. [Inventario completo](INVENTARIO_IMPLEMENTACION.md), [configuración](CONFIGURACION.md) y [matriz](MATRIZ_PERMISOS.md) conservan los detalles.
+Diez routers, 61 operaciones HTTP en 52 rutas distintas incluyendo raíz, 18 tablas de aplicación y control Alembic, revisiones 001–005, cinco roles canónicos, 23 páginas y 66 PHP. Código, OpenAPI, metadata y reportes de fases determinaron la documentación. [Inventario completo](../INVENTARIO_IMPLEMENTACION.md), [configuración](../CONFIGURACION.md) y [matriz](../MATRIZ_PERMISOS.md) conservan los detalles.
 
 7E es determinista/explicable: no hay modelo entrenado, LLM/ML ni IA local implementada. El frontend es PHP/HTML/CSS/JavaScript; la persistencia actual es MySQL 8 con almacenamiento local. No se añaden servicios cloud descartados.
 
@@ -48,7 +48,7 @@ Se conservaron 11 capturas del estado inicial demo antes de resolver la ronda. L
 
 Inspección local sólo de presencia, sin imprimir valores: host/usuario/password/remitente ausentes. Estado **SMTP_REAL_PENDIENTE_DE_CREDENCIALES_EXTERNAS**. SMTP genérico TLS, nombres reales de settings, cola/worker ya existen y se conservan. Tests verifican expiración, single-use, anti-enumeración, tokens alterados/replay, doble petición/consumo y solicitud→revisión→contraseña inicial. No hubo correo real; no se inventan cuentas ni credenciales externas.
 
-[Procedimiento exacto posterior](SMTP_RECUPERACION.md): SMTP privado/buzón autorizado, solicitud aprobada para identidad sintética, worker, contraseña inicial, reset, llegada, cambio, replay y nuevo login. La contraseña demo `.local` no concede acceso a un buzón real.
+[Procedimiento exacto posterior](../SMTP_RECUPERACION.md): SMTP privado/buzón autorizado, solicitud aprobada para identidad sintética, worker, contraseña inicial, reset, llegada, cambio, replay y nuevo login. La contraseña demo `.local` no concede acceso a un buzón real.
 
 ## 8. Pruebas finales
 

@@ -32,17 +32,17 @@ Desde `api` y con el entorno virtual activado:
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Hardening local 6B.4A: [operación, límites, migración 003 y pruning](../docs/FASE_6B_4A_AUTH_HARDENING.md).
+Hardening local 6B.4A: [operación, límites, migración 003 y pruning](../docs/historico/FASE_6B_4A_AUTH_HARDENING.md).
 El presupuesto global requiere **un único proceso FastAPI**. `--reload` es solo desarrollo;
 reinicia el estado global en memoria, pero los buckets MySQL persisten. Desplegar 003 antes
 del código nuevo.
 
-Fase 6C: [solicitudes de acceso, recuperación y cola de correo](../docs/FASE_6C_ACCESO_RECUPERACION.md).
+Fase 6C: [solicitudes de acceso, recuperación y cola de correo](../docs/historico/FASE_6C_ACCESO_RECUPERACION.md).
 El código 6C requiere también la revisión **004**, además de 002/003. Las pruebas
 crean esquemas temporales aleatorios; no aplican migraciones a la BD de trabajo.
 El correo se procesa mediante CLI Python y configuración SMTP privada, sin SMTP en PHP.
 
-Fase 6B.4B: [Turnstile adaptativo, configuración y pruebas](../docs/FASE_6B_4B_TURNSTILE.md).
+Fase 6B.4B: [Turnstile adaptativo, configuración y pruebas](../docs/historico/FASE_6B_4B_TURNSTILE.md).
 Con `TURNSTILE_MODE=enabled`, FastAPI decide y verifica los desafíos de login,
 solicitud de acceso y solicitud de recuperación. Requiere secreto privado y
 allowlist exacta de hostnames; PHP recibe únicamente la sitekey pública.
@@ -58,30 +58,30 @@ aplicación; toda regresión MySQL, incluida 6A, usa un esquema temporal aleator
 La ruta `GET /` devuelve el estado básico de la API. La documentación interactiva está en <http://127.0.0.1:8000/docs>.
 
 Para una instalación local en 004 sin ADMIN activo, consulte el
-[bootstrap inicial del primer ADMIN](../docs/FASE_6D_1_BOOTSTRAP_ADMIN.md).
+[bootstrap inicial del primer ADMIN](../docs/historico/FASE_6D_1_BOOTSTRAP_ADMIN.md).
 La CLI solicita credenciales interactivas ocultas, fija el rol ADMIN y se
 deshabilita lógicamente al existir un ADMIN activo; no modifica otros usuarios.
 
-Fase 7A: [ciclo de auditorías, permisos y operación de 005](../docs/FASE_7A_AUDITORIAS.md).
+Fase 7A: [ciclo de auditorías, permisos y operación de 005](../docs/historico/FASE_7A_AUDITORIAS.md).
 005 agrega únicamente IN_REVIEW al CHECK; no cambia 001–004. En instalaciones
 nuevas de evaluación, migrar directamente a 005 y ejecutar el seed explícito de
 Fase 9. El bootstrap histórico sigue disponible para el primer ADMIN personal
 en una instalación local sin administrador activo; no mezclar ambos recorridos.
 
-Fase 7B: [hallazgos y gestión integral de evidencias](../docs/FASE_7B_HALLAZGOS_EVIDENCIAS.md).
+Fase 7B: [hallazgos y gestión integral de evidencias](../docs/historico/FASE_7B_HALLAZGOS_EVIDENCIAS.md).
 Reutiliza el schema **005**; no requiere migración 006.
 
-Fase 7C: [rondas y decisiones de aprobación por versión documental](../docs/FASE_7C_APROBACIONES.md).
+Fase 7C: [rondas y decisiones de aprobación por versión documental](../docs/historico/FASE_7C_APROBACIONES.md).
 Reutiliza RondaAprobacion/DecisionAprobacion en **005**, sin migración adicional.
 La identidad del aprobador y el resultado se determinan en backend.
 
-Fase 7D: [dashboard ejecutivo, alertas derivadas e indicadores con scope SQL](../docs/FASE_7D_DASHBOARD_ALERTAS_INDICADORES.md).
+Fase 7D: [dashboard ejecutivo, alertas derivadas e indicadores con scope SQL](../docs/historico/FASE_7D_DASHBOARD_ALERTAS_INDICADORES.md).
 Cuatro GET bajo `/api/v1/dashboard`: resumen, indicadores, alertas y actividad.
 Usa schema **005**, sin migración 006. Porcentajes separados, null/NO_DATA con
 denominador cero y permisos de lectura/historial existentes. Mantener MySQL/InnoDB
 REPEATABLE READ para coherencia de la respuesta completa.
 
-Fase 7E: [análisis documental determinista y explicable](../docs/FASE_7E_ANALISIS_INTELIGENTE.md).
+Fase 7E: [análisis documental determinista y explicable](../docs/historico/FASE_7E_ANALISIS_INTELIGENTE.md).
 Cuatro GET autenticados bajo `/api/v1/analisis`: resumen, anomalías, documentos/{id}
 y versiones/{id}. Reutiliza schema **005**, sin migración nueva ni servicios IA.
 Scope antes de comparar hashes, explicación por regla y barrera fresca de permisos.
@@ -110,4 +110,4 @@ El análisis admite dos consultas simultáneas por proceso para evitar contenci�
 de temporales MySQL; ambas admisiones mantienen una cola acotada.
 
 Las regresiones integrales y el benchmark se documentan en
-[FASE_8_QA_SEGURIDAD_RENDIMIENTO.md](../docs/FASE_8_QA_SEGURIDAD_RENDIMIENTO.md).
+[FASE_8_QA_SEGURIDAD_RENDIMIENTO.md](../docs/historico/FASE_8_QA_SEGURIDAD_RENDIMIENTO.md).

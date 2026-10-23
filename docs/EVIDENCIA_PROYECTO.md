@@ -74,4 +74,4 @@ Fase 8 conserva 1,212 unit, 1,138 MySQL y 312 frontend verdes, más benchmark lo
 
 La instalación nueva comprobó dependencia/pip check, migración 005, seed doble sin duplicados, login/me, auditorías/documentos/hallazgos/aprobaciones/dashboard/análisis, descarga, logout, RBAC server-side y decisión inmutable. Para facilitar reproducibilidad se conserva el snapshot runtime en requirements-lock. Los errores iniciales de sandbox/Chrome y de longitud de ruta del runner se resolvieron sin cambiar permisos de producto.
 
-El [Informe Fase 9](FASE_9_CIERRE_ENTREGA.md) registra versiones, resultados, fingerprints, secret scan y exports. Las fuentes no afirman despliegue productivo ni cobertura porcentual. El dictamen final comunicado para Fase 9.2 aprueba la release; la publicación Git sigue siendo un paso separado.
+El [Informe Fase 9](historico/FASE_9_CIERRE_ENTREGA.md) registra versiones, resultados, fingerprints, secret scan y exports. Las fuentes no afirman despliegue productivo ni cobertura porcentual. El dictamen final comunicado para Fase 9.2 aprueba la release; la publicación Git sigue siendo un paso separado.

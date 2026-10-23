@@ -556,7 +556,7 @@ Schemas/routers/documento_service; autorización, autenticación y locks de audi
 - `api/tests_auth_mysql/test_phase8_e2e_mysql.py`
 - `api/tests_auth_mysql/test_phase8_system_mysql.py`
 - `api/tests_unit/test_phase8_unit.py`
-- `docs/FASE_8_QA_SEGURIDAD_RENDIMIENTO.md`
+- `docs/historico/FASE_8_QA_SEGURIDAD_RENDIMIENTO.md`
 
 ## 29. Deuda aceptada y límites de la evidencia
 

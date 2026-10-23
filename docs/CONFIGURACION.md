@@ -42,7 +42,7 @@ Un solo proceso API; los presupuestos en memoria no se comparten entre workers. 
 | TURNSTILE_VERIFY_GLOBAL_PER_MINUTE | 60 | POST externos, incluido retry acotado |
 | TURNSTILE_VERIFY_CONCURRENCY | 4 | Verificaciones simultáneas, 1–32 |
 
-PHP recibe sólo `TURNSTILE_SITE_KEY` pública mediante entorno del proceso. FastAPI decide y verifica desafíos. [Fase Turnstile](FASE_6B_4B_TURNSTILE.md).
+PHP recibe sólo `TURNSTILE_SITE_KEY` pública mediante entorno del proceso. FastAPI decide y verifica desafíos. [Fase Turnstile](historico/FASE_6B_4B_TURNSTILE.md).
 
 ## Acceso y recuperación
 

@@ -311,7 +311,7 @@ frontend/pages/hallazgo.php
 frontend/pages/hallazgo_form.php
 frontend/tests/test_hallazgos.py
 frontend/tests/test_hallazgos_browser.py
-docs/FASE_7B_HALLAZGOS_EVIDENCIAS.md
+docs/historico/FASE_7B_HALLAZGOS_EVIDENCIAS.md
 ```
 
 `git diff --stat` de los 20 archivos previamente tracked (sin staging):

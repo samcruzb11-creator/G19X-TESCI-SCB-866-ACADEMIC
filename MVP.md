@@ -35,7 +35,7 @@ PHP/HTML/CSS/JavaScript presenta la interfaz; FastAPI Python 3.14 implementa reg
 
 ## Criterios de aceptación
 
-Instalación nueva sin dump personal; Alembic 005; seed repetible sin duplicar ni sobrescribir cuentas; login ADMIN y RESPONSABLE_AREA; consulta de recursos y descarga; intento administrativo/IDOR rechazado; logout revocado. Pruebas de token expirado/alterado/replay/concurrente; exports válidos y documentación consistente. La validación actual se registra en [Fase 9](docs/FASE_9_CIERRE_ENTREGA.md).
+Instalación nueva sin dump personal; Alembic 005; seed repetible sin duplicar ni sobrescribir cuentas; login ADMIN y RESPONSABLE_AREA; consulta de recursos y descarga; intento administrativo/IDOR rechazado; logout revocado. Pruebas de token expirado/alterado/replay/concurrente; exports válidos y documentación consistente. La validación actual se registra en [Fase 9](docs/historico/FASE_9_CIERRE_ENTREGA.md).
 
 ## Estado y límites
 

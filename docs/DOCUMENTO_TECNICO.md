@@ -93,7 +93,7 @@ Dashboard 7D ofrece resumen, indicadores, alertas y actividad; usa aggregate SQL
 
 7E es un motor determinista explicable. Aplica reglas sobre ausencia/inconsistencia de versiones, metadatos, hash/duplicados visibles y estados. La similitud de nombres usa normalización Unicode y `SequenceMatcher`, con umbral configurable 0.92; no lee contenido semántico ni utiliza Ollama, IA generativa, ML/LLM o modelos entrenados. La consulta local limita 64 candidatos y 100 versiones, con nombre mínimo de ocho caracteres para similitud. El chequeo local de storage es read-only y acotado; informa comprobación completa/truncación. No garantiza detectar cualquier irregularidad ni todos los documentos faltantes; sólo comprueba las condiciones y referencias conocidas dentro del alcance. No equivale a escaneo antivirus ni certificación documental.
 
-El análisis libera la conexión del snapshot antes de una barrera fresca de autorización para no responder con alcance revocado. Los detalles y reglas se conservan en [Fase 7E](FASE_7E_ANALISIS_INTELIGENTE.md).
+El análisis libera la conexión del snapshot antes de una barrera fresca de autorización para no responder con alcance revocado. Los detalles y reglas se conservan en [Fase 7E](historico/FASE_7E_ANALISIS_INTELIGENTE.md).
 
 ## 12. Seguridad y concurrencia
 
@@ -105,7 +105,7 @@ Bloqueos de filas y orden definido serializan cambios de ownership, estados, ron
 
 Baseline Fase 8: 1,212 unit, 1,138 MySQL y 312 frontend, todos verdes; 1,937 contratos distintos dentro de 2,662 ejecuciones. Incluye cargas locales hasta 250 concurrentes, seguridad, errores DB/storage, Chrome real y E2E. Bajo concurrencia extrema el análisis global puede tardar alrededor de un minuto en ese entorno; no se interpreta como SLA aceptado universal. Los límites de login causan rechazos deliberados bajo carga.
 
-Fase 9 valida seed, HTTP RBAC, instalación nueva y documentación. No repite el benchmark completo porque no modifica runtime crítico. Los números actuales y la metodología exacta se registran en [Informe Fase 9](FASE_9_CIERRE_ENTREGA.md); el [informe Fase 8](FASE_8_QA_SEGURIDAD_RENDIMIENTO.md) conserva métricas y deprecaciones.
+Fase 9 valida seed, HTTP RBAC, instalación nueva y documentación. No repite el benchmark completo porque no modifica runtime crítico. Los números actuales y la metodología exacta se registran en [Informe Fase 9](historico/FASE_9_CIERRE_ENTREGA.md); el [informe Fase 8](historico/FASE_8_QA_SEGURIDAD_RENDIMIENTO.md) conserva métricas y deprecaciones.
 
 ## 14. Decisiones y límites de diseño
 
