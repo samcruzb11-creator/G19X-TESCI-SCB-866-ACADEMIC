@@ -116,3 +116,13 @@ Antes de publicar una release revise staging/diff, tests afectados, instalación
 ## 12. Deuda y troubleshooting
 
 Huérfano por corte abrupto requiere reconciliación; 7E limita candidatos/storage; deprecaciones menores de librerías de tests permanecen; análisis global pesado bajo concurrencia extrema. 7E aplica reglas, hashes, metadatos/versiones y similitud heurística de nombres; no garantiza detectar cualquier irregularidad ni todos los documentos faltantes. No realiza análisis semántico general ni utiliza Ollama, IA generativa, LLM, machine learning o modelos entrenados. Un servicio multiproceso, administración web ampliada, notificaciones generales y modelo local de IA necesitan diseño aparte. [Troubleshooting de instalación](GUIA_INSTALACION.md) contiene puertos, SMTP, env, PHP y MySQL.
+
+## Código Heredado y Pruebas Auxiliares (api/main.py y api/tests/)
+
+`api/main.py` se conserva como shim de compatibilidad heredado que reexporta `app` desde `api/app/main.py` (el arranque operativo canónico usa `app.main:app`; desde `api/` admite `venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000`).
+`api/tests/` (`test_file_consistency.py` y `test_storage_and_traceability.py`) contiene los contratos de almacenamiento y fronteras transaccionales de Fase 6A importados dinámicamente por `api/tests_unit/test_file_routes_unit.py` y `api/tests_auth_mysql/test_6a_regression_mysql.py`; nunca ejecute `pytest api/tests` directamente contra la BD operativa.
+
+```bat
+set PYTHONPATH=api&& api\venv\Scripts\python.exe -B -m pytest api/tests_unit/test_file_routes_unit.py -k test_existing_storage_regression_without_db -q -p no:cacheprovider --basetemp=%TEMP%\trazabilidad_6a_unit
+set PYTHONPATH=api&& set AUTH_MYSQL_TEST=1&& api\venv\Scripts\python.exe -B -m pytest api/tests_auth_mysql/test_6a_regression_mysql.py -q -p no:cacheprovider --basetemp=%TEMP%\trazabilidad_6a_mysql
+```
