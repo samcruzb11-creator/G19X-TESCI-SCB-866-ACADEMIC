@@ -228,7 +228,7 @@ set AUTH_BROWSER_TEST=1
 api\venv\Scripts\python.exe -B -m pytest api/tests_auth_mysql -q -p no:cacheprovider --basetemp=%TEMP%\trazabilidad_mysql_nuevo
 ```
 
-`AUTH_BROWSER_TEST=1` activa Chrome instalado con perfil efímero; opcionalmente configure `CHROME_TEST_BINARY` y `PHP_TEST_BINARY`. Sin opt-in, los tests de navegador se omiten. Use una carpeta basetemp nueva y propia: pytest puede limpiar esa carpeta. **No ejecute `api/tests` contra la configuración operativa**: es una suite histórica con fixture antiguo. La regresión protegida de 6A es `api/tests_auth_mysql/test_6a_regression_mysql.py`. Las suites normales no contactan SMTP ni Turnstile reales.
+`PHP_TEST_BINARY` **no es opcional** si PHP no está instalado en la ruta por defecto `C:\xampp\php\php.exe` (exigida por `frontend/tests/conftest.py`); en ese caso defina `set PHP_TEST_BINARY=C:\ruta\a\php.exe` en CMD (o `$env:PHP_TEST_BINARY='C:\ruta\a\php.exe'` en PowerShell) antes de ejecutar `pytest`. `AUTH_BROWSER_TEST=1` activa Chrome instalado con perfil efímero; opcionalmente configure `CHROME_TEST_BINARY` si Chrome no está en su ruta estándar. Sin opt-in, los tests de navegador se omiten. Use una carpeta basetemp nueva y propia: pytest puede limpiar esa carpeta. **No ejecute `api/tests` contra la configuración operativa**: es una suite histórica con fixture antiguo. La regresión protegida de 6A es `api/tests_auth_mysql/test_6a_regression_mysql.py`. Las suites normales no contactan SMTP ni Turnstile reales.
 
 Los resultados históricos de QA y de instalación desde un clone nuevo se conservan en el [informe de cierre](historico/FASE_9_CIERRE_ENTREGA.md).
 
