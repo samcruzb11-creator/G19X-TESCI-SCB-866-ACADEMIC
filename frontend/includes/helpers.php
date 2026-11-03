@@ -83,6 +83,24 @@ function user_name(mixed $id, array $users): string
     return $id === null ? '—' : ($users[$id] ?? 'Usuario #' . $id);
 }
 
+function approval_actor_names(array $round, array $decisions, array $events = []): array
+{
+    $users = presentation_user_names();
+    $candidates = [$round['solicitada_por'] ?? null, $round['mi_decision']['aprobador'] ?? null];
+    foreach ($decisions as $decision) $candidates[] = is_array($decision) ? ($decision['aprobador'] ?? null) : null;
+    foreach ($candidates as $actor) if (is_array($actor)) $users += areas_by_id([$actor]);
+    if (!can_show_action('usuarios_catalogo')) return $users;
+    foreach ($events as $event) {
+        $id = is_array($event) ? positive_id($event['actor_id'] ?? null) : null;
+        if ($id !== null && !isset($users[$id])) {
+            $catalog = api_get('/api/v1/usuarios');
+            if ($catalog['ok']) $users += areas_by_id($catalog['data']);
+            break;
+        }
+    }
+    return $users;
+}
+
 function file_size_label(mixed $size): string
 {
     if (!is_numeric($size) || (float) $size < 0) return '—';
