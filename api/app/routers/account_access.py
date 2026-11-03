@@ -81,7 +81,15 @@ def get_request(request_id: int, admin: Usuario = Depends(administrator), db: Se
 
 @router.post('/access-requests/{request_id}/approve', response_model=AccessRequestRead)
 def approve(request_id: int, payload: ApproveRequest, admin: Usuario = Depends(administrator), db: Session = Depends(get_db)):
-    validate_mail_config()
+    try:
+        validate_mail_config()
+    except HTTPException as exc:
+        if exc.status_code == 503:
+            raise HTTPException(503, detail={
+                'code': 'MAIL_NOT_CONFIGURED',
+                'message': 'El correo no está configurado; la solicitud sigue pendiente',
+            }) from None
+        raise
     return actions.resolve_access(db, admin.id, request_id, role=payload.rol)
 
 

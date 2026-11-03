@@ -31,9 +31,11 @@ if ($method === 'POST') {
     }
     http_response_code(api_http_status($result));
     if ($result['status'] === 429 && isset($result['retry_after'])) header('Retry-After: ' . $result['retry_after']);
-    $accessError = match ($result['status']) {
-        409 => 'La solicitud ya fue resuelta o el correo pertenece a una cuenta. Actualiza la página.',
-        429 => 'Demasiados intentos. Intente nuevamente más tarde.',
+    $accessError = match (true) {
+        $result['status'] === 409 => 'La solicitud ya fue resuelta o el correo pertenece a una cuenta. Actualiza la página.',
+        $result['status'] === 429 => 'Demasiados intentos. Intente nuevamente más tarde.',
+        $action === 'approve' && ($result['status'] === 503 || ($result['error_code'] ?? '') === 'mail_not_configured')
+            => 'El correo no está configurado; la solicitud sigue pendiente',
         default => 'No fue posible completar la operación. Intenta más tarde.',
     };
 } elseif ($method !== 'GET') throw new ApiPageError(405, 'Método no permitido.');
