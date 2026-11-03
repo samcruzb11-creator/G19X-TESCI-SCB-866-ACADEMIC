@@ -28,7 +28,7 @@ def test_audit_list_forms_keyboard_and_cycle(frontend,tmp_path,width,height):
         wait(cdp,"location.search.includes('pagina=dashboard') && !!document.querySelector('.page-heading')")
         go(cdp,base+'/index.php?pagina=auditorias',"!!document.querySelector('.audit-list')")
         assert not evaluate(cdp,'document.documentElement.scrollWidth>innerWidth')
-        assert evaluate(cdp,"document.querySelector('.audit-list').textContent.includes('Borrador')")
+        assert evaluate(cdp,"document.querySelector('.audit-list').textContent.includes('Planificada')")
         evaluate(cdp,"document.querySelector('.audit-more-filters summary').focus()")
         cdp('Input.dispatchKeyEvent',type='keyDown',key='Enter',code='Enter',windowsVirtualKeyCode=13,text='\r',unmodifiedText='\r')
         cdp('Input.dispatchKeyEvent',type='keyUp',key='Enter',code='Enter',windowsVirtualKeyCode=13)
