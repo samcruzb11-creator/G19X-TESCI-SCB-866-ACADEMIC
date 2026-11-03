@@ -4,7 +4,7 @@ Proyecto: Sistema de Trazabilidad Documental para Auditorías. Alumno: Samuel Cr
 
 ## Fuentes y alcance temporal
 
-Reconstrucción a partir de Git y reportes de fases conservados, consultados durante el cierre del 8–9 de octubre de 2026. Se describen resultados de hitos, no horas de trabajo ni reuniones no documentadas. La fecha de commit acredita el registro técnico del hito; no certifica la duración de cada actividad.
+Reconstrucción a partir de Git y reportes de fases conservados, consultados originalmente durante el cierre del 8–9 de octubre de 2026 y actualizados hasta el cierre de revisiones (noviembre de 2026). Se describen resultados de hitos, no horas de trabajo ni reuniones no documentadas. La fecha de commit acredita el registro técnico del hito; no certifica la duración de cada actividad.
 
 ## Evolución interpretada
 
@@ -31,7 +31,11 @@ Reconstrucción a partir de Git y reportes de fases conservados, consultados dur
 | 7 oct 2026 | Dashboard 7D: dc32f6e | Indicadores/alertas/actividad calculados tras autorización SQL |
 | 7 oct 2026 | Análisis 7E: eec566d | Motor determinista de anomalías, explicaciones, duplicados visibles y comprobaciones locales acotadas |
 | 8 oct 2026 | Hardening 8: d54a81e | Correcciones reproducidas de seguridad/concurrencia/rendimiento y regresión integral |
-| 8–9 oct 2026 | Cierre/entrega 9, working tree pendiente de auditoría | Seed demo opt-in, instalación fresca, documentación, capturas, exports y hashes; sin commit/push |
+| 12 oct 2026 | Cierre/entrega Fase 9: c20844b | Seed demo opt-in, instalación fresca, documentación, capturas, exports, anonimización 9.1 y hashes auditados |
+| 22 oct 2026 | Declaración IA y notas técnicas: 7446181, 66026e5, 3890b62, ff22c05, 2f77230, 0ee9d7e, 41bb724 | Declaración de asistencia IA y explicaciones técnicas de autorización, transacciones de archivos y reglas deterministas |
+| 23 oct 2026 | Revisión documental Cortes 1–3: 695a3ee, 0398a78 | Simplificación de inicio rápido en README, mejoras en guía de instalación y reorganización de docs/historico/ |
+| 27 oct 2026 | Cierre de Cortes 4 y 5: 1a60813, f1d98bf | Reparación UTF-8 en FASE_6B_2_RBAC.md, documentación de api/main.py y api/tests/ y validación de clon limpio |
+| 3 nov 2026 | Pulido final Corte 6 (commits atómicos de cierre) | Mensaje explícito sin SMTP al aprobar acceso, unificación de estados de auditoría, nombre de actor en historial de rondas, traducción de estados de solicitud, ajuste CSS móvil y actualización documental |
 
 ## Resultados de QA registrados
 
