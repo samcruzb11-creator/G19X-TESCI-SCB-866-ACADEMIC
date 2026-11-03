@@ -40,7 +40,7 @@ Para ampliar un endpoint aplique permiso en servicio y filtro SQL antes de pagin
 
 ## 5. Workflows
 
-Auditoría: PLANNED → IN_PROGRESS → IN_REVIEW → COMPLETED; retorno revisión → progreso. CANCELLED existe como estado persistente, sin transición pública. Hallazgo: OPEN → IN_PROGRESS → PENDING_VERIFICATION → CLOSED, retorno de verificación a progreso y aceptación de riesgo desde estados activos. Rondas: PENDING → IN_REVIEW → resultado derivado/terminal; decisiones pendientes sólo del APROBADOR asignado. El router y los servicios actuales son la fuente de verdad para precondiciones.
+Auditoría: PLANNED (Planificada) → IN_PROGRESS (En curso) → IN_REVIEW (En revisión) → COMPLETED (Completada); retorno En revisión → En curso. CANCELLED (Cancelada) existe como estado persistente, sin transición pública. Hallazgo: OPEN → IN_PROGRESS → PENDING_VERIFICATION → CLOSED, retorno de verificación a progreso y aceptación de riesgo desde estados activos. Rondas: PENDING → IN_REVIEW → resultado derivado/terminal; decisiones pendientes sólo del APROBADOR asignado. El router y los servicios actuales son la fuente de verdad para precondiciones.
 
 Cambios de estado incluyen timestamp/estado esperado; ante 409 recargue, revise y reintente sólo si la intención sigue siendo válida. Ante `COMMIT_OUTCOME_UNKNOWN` consulte BD/storage antes de repetir. No cambie flags mediante SQL para «desbloquear» una auditoría sin preservar trazabilidad.
 
@@ -117,7 +117,7 @@ Antes de publicar una release revise staging/diff, tests afectados, instalación
 
 Huérfano por corte abrupto requiere reconciliación; 7E limita candidatos/storage; deprecaciones menores de librerías de tests permanecen; análisis global pesado bajo concurrencia extrema. 7E aplica reglas, hashes, metadatos/versiones y similitud heurística de nombres; no garantiza detectar cualquier irregularidad ni todos los documentos faltantes. No realiza análisis semántico general ni utiliza Ollama, IA generativa, LLM, machine learning o modelos entrenados. Un servicio multiproceso, administración web ampliada, notificaciones generales y modelo local de IA necesitan diseño aparte. [Troubleshooting de instalación](GUIA_INSTALACION.md) contiene puertos, SMTP, env, PHP y MySQL.
 
-## Código Heredado y Pruebas Auxiliares (api/main.py y api/tests/)
+## 13. Código Heredado y Pruebas Auxiliares (api/main.py y api/tests/)
 
 `api/main.py` se conserva como shim de compatibilidad heredado que reexporta `app` desde `api/app/main.py` (el arranque operativo canónico usa `app.main:app`; desde `api/` admite `venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000`).
 `api/tests/` (`test_file_consistency.py` y `test_storage_and_traceability.py`) contiene los contratos de almacenamiento y fronteras transaccionales de Fase 6A importados dinámicamente por `api/tests_unit/test_file_routes_unit.py` y `api/tests_auth_mysql/test_6a_regression_mysql.py`; nunca ejecute `pytest api/tests` directamente contra la BD operativa.
