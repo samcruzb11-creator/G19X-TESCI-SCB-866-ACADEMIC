@@ -34,7 +34,7 @@ if ($method === 'POST') {
     $accessError = match (true) {
         $result['status'] === 409 => 'La solicitud ya fue resuelta o el correo pertenece a una cuenta. Actualiza la página.',
         $result['status'] === 429 => 'Demasiados intentos. Intente nuevamente más tarde.',
-        $action === 'approve' && ($result['status'] === 503 || ($result['error_code'] ?? '') === 'mail_not_configured')
+        in_array($action, ['approve', 'resend'], true) && ($result['error_code'] ?? '') === 'mail_not_configured'
             => 'El correo no está configurado; la solicitud sigue pendiente',
         default => 'No fue posible completar la operación. Intenta más tarde.',
     };

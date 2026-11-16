@@ -43,6 +43,9 @@ function api_error_response(int $status, string $body): array
         || (in_array($status, [400, 409], true) && is_string($detail) && str_starts_with($detail, 'Ya existe un documento con el código '))) {
         $result['error_code'] = 'duplicate_code';
     }
+    if ($status === 503 && is_array($detail) && ($detail['code'] ?? null) === 'MAIL_NOT_CONFIGURED') {
+        $result['error_code'] = 'mail_not_configured';
+    }
     if ($status === 422 && is_array($detail)) {
         foreach ($detail as $item) {
             $location = is_array($item) ? ($item['loc'] ?? []) : [];
