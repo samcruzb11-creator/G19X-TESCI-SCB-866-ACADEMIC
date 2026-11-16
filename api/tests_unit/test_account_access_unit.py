@@ -218,6 +218,24 @@ def test_public_reset_is_queued_even_without_smtp_configuration(monkeypatch):
         app.dependency_overrides.clear()
 
 
+@pytest.mark.parametrize('endpoint,payload', [('approve', {'rol': 'AUDITOR_INTERNO'}), ('resend', {})])
+def test_approve_and_resend_require_mail_configuration(monkeypatch, endpoint, payload):
+    from app.api.dependencies import current_user
+    monkeypatch.setattr(settings, 'smtp_host', '')
+    app.dependency_overrides[get_db] = lambda: None
+    app.dependency_overrides[current_user] = lambda: Usuario(id=1, rol='ADMIN', activo=True)
+    try:
+        with TestClient(app) as client:
+            response = client.post(f'/api/v1/access-requests/1/{endpoint}', json=payload)
+        assert response.status_code == 503
+        assert response.json()['detail'] == {
+            'code': 'MAIL_NOT_CONFIGURED',
+            'message': 'El correo no está configurado; la solicitud sigue pendiente',
+        }
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_private_route_does_not_propagate_secrets_to_server_logger(monkeypatch, caplog):
     from app.services import account_actions
     monkeypatch.setattr(account_actions, 'request_reset', Mock(side_effect=RuntimeError('secret password/token/SQL params')))

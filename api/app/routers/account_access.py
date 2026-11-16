@@ -79,17 +79,21 @@ def get_request(request_id: int, admin: Usuario = Depends(administrator), db: Se
     return row
 
 
-@router.post('/access-requests/{request_id}/approve', response_model=AccessRequestRead)
-def approve(request_id: int, payload: ApproveRequest, admin: Usuario = Depends(administrator), db: Session = Depends(get_db)):
+def require_mail():
     try:
         validate_mail_config()
     except HTTPException as exc:
         if exc.status_code == 503:
             raise HTTPException(503, detail={
-                'code': 'MAIL_NOT_CONFIGURED',
-                'message': 'El correo no está configurado; la solicitud sigue pendiente',
+                "code": "MAIL_NOT_CONFIGURED",
+                "message": "El correo no está configurado; la solicitud sigue pendiente",
             }) from None
         raise
+
+
+@router.post('/access-requests/{request_id}/approve', response_model=AccessRequestRead)
+def approve(request_id: int, payload: ApproveRequest, admin: Usuario = Depends(administrator), db: Session = Depends(get_db)):
+    require_mail()
     return actions.resolve_access(db, admin.id, request_id, role=payload.rol)
 
 
@@ -100,5 +104,5 @@ def reject(request_id: int, payload: RejectRequest, admin: Usuario = Depends(adm
 
 @router.post('/access-requests/{request_id}/resend', response_model=AccessRequestRead)
 def resend(request_id: int, payload: ResendRequest, admin: Usuario = Depends(administrator), db: Session = Depends(get_db)):
-    validate_mail_config()
+    require_mail()
     return actions.resend_initial(db, admin.id, request_id)
