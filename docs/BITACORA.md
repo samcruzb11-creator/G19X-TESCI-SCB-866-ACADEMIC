@@ -35,7 +35,8 @@ Reconstrucción a partir de Git y reportes de fases conservados, consultados ori
 | 22 oct 2026 | Declaración IA y notas técnicas: 7446181, 66026e5, 3890b62, ff22c05, 2f77230, 0ee9d7e, 41bb724 | Declaración de asistencia IA y explicaciones técnicas de autorización, transacciones de archivos y reglas deterministas |
 | 23 oct 2026 | Revisión documental Cortes 1–3: 695a3ee, 0398a78 | Simplificación de inicio rápido en README, mejoras en guía de instalación y reorganización de docs/historico/ |
 | 27 oct 2026 | Cierre de Cortes 4 y 5: 1a60813, f1d98bf | Reparación UTF-8 en FASE_6B_2_RBAC.md, documentación de api/main.py y api/tests/ y validación de clon limpio |
-| 3 nov 2026 | Pulido final Corte 6 (commits atómicos de cierre) | Mensaje explícito sin SMTP al aprobar acceso, unificación de estados de auditoría, nombre de actor en historial de rondas, traducción de estados de solicitud, ajuste CSS móvil y actualización documental |
+| 3 nov 2026 | Pulido final Corte 6: 0a91fe1, e317eda, 8b3d3fa, 3cb201e, 50de24d, 52ac1ea, 21511ea, 1190e32, a5d46f7 | Mensaje explícito sin SMTP al aprobar acceso, unificación de estados de auditoría, nombre de actor en historial de rondas, traducción de estados de solicitud, ajuste CSS móvil y actualización documental |
+| 16 nov 2026 | Cierre definitivo Revisión 7 (commits atómicos de cierre) | Unificación de `require_mail()` en `approve` y `resend`, reconocimiento de `mail_not_configured` en `api_errors.php` y `access_requests_controller.php`, prueba unitaria en `test_account_access_unit.py` y alineación del procedimiento en `docs/ACCESOS_PRUEBA.md` y `README.md` |
 
 ## Resultados de QA registrados
 
