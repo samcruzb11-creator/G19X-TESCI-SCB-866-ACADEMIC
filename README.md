@@ -100,7 +100,7 @@ Ejemplo para una instalación nueva en Windows, con **CMD**. Los comandos parten
    cd ..
    ```
 
-   Sólo como respaldo local cuando se prueba sin el archivo del SGPA, cree antes esa carpeta externa y genere un archivo local equivalente desde `api` con `venv\Scripts\python.exe -m app.scripts.evaluation_credentials --confirm-generate --output "%USERPROFILE%\Downloads\SistemaTrazabilidad_Entregables\01_ACCESOS_PRUEBA.md"`. Consulte los detalles en [usuarios y datos de evaluación](docs/GUIA_INSTALACION.md#6-usuarios-y-datos-de-evaluación); no hay cuentas públicas predeterminadas ni usuarios creados automáticamente al arrancar.
+   Para la evaluación oficial se utiliza el archivo `01_ACCESOS_PRUEBA.md` provisto en el SGPA; el script `app.scripts.evaluation_credentials` sólo se emplea si se requiere regenerar el archivo privado en un entorno local aislado cuando no se dispone del entregable del SGPA (creando antes esa carpeta externa y ejecutando desde `api` `venv\Scripts\python.exe -m app.scripts.evaluation_credentials --confirm-generate --output "%USERPROFILE%\Downloads\SistemaTrazabilidad_Entregables\01_ACCESOS_PRUEBA.md"`). Consulte los detalles en [usuarios y datos de evaluación](docs/GUIA_INSTALACION.md#6-usuarios-y-datos-de-evaluación); no hay cuentas públicas predeterminadas ni usuarios creados automáticamente al arrancar.
 
 10. **Inicie FastAPI en la terminal 1.** Mantenga un solo proceso API.
 
